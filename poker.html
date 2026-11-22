@@ -143,6 +143,30 @@
   .feuille .rangee-b { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
   .feuille kbd { font: 600 12px ui-monospace, Menlo, monospace; background: #1b4430; border-radius: 4px; padding: 1px 5px; }
 
+  /* --- Ordinateur (écran large) : tout visible d'un coup d'œil, adversaires à gauche --- */
+  @media (min-width: 900px) and (min-height: 560px) {
+    body { overflow: hidden; }
+    #app { max-width: 1240px; padding: 0 12px; display: grid; column-gap: 16px;
+           grid-template-columns: minmax(360px, 1fr) clamp(440px, 42vw, 580px);
+           grid-template-rows: auto auto auto 1fr auto;
+           grid-template-areas: "adv res" "adv zone" "adv mises" "adv ." "adv clav"; }
+    #milieu { display: contents; }
+    #resultat { grid-area: res; border-bottom: 0; border-radius: 0 0 16px 16px; }
+    #zoneCartes { grid-area: zone; margin-top: 12px; }
+    #scene3d { margin: -6px 0 0; }
+    .mises { grid-area: mises; }
+    #clavier { grid-area: clav; border-top: 0; border-radius: 16px 16px 0 0; margin-top: 10px; }
+    #colAdv { grid-area: adv; min-height: 0; overflow-y: auto; padding: 14px 4px 10px 0; display: flex; flex-direction: column; }
+    #colAdv .entete-adv { margin-top: 0; }
+    #listeAdv { flex: 1; }
+    #mention { margin-top: 10px; }
+    /* Une ligne par adversaire : nom et « Ses cartes », puis les 7 boutons d'action, toujours visibles. */
+    .adv { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 8px; margin-top: 6px; }
+    .adv .tete { flex: 0 0 auto; min-height: 44px; }
+    .adv .ses { padding: 0 8px; font-size: 12px; }
+    .adv .actions { flex: 1 1 330px; margin-top: 0; }
+  }
+
   /* --- Tests (caché) --- */
   #tests { display: none; position: fixed; inset: 0; background: var(--fond); overflow: auto; padding: calc(12px + env(safe-area-inset-top)) 16px 24px; z-index: 10; }
   #tests table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -182,12 +206,14 @@
       <label>Pot<input id="pot" inputmode="decimal" placeholder="facultatif" autocomplete="off"></label>
       <label>À suivre<input id="suivre" inputmode="decimal" placeholder="facultatif" autocomplete="off"></label>
     </div>
+    <section id="colAdv">
     <div class="entete-adv">
       <h2>Adversaires</h2>
       <div class="pas"><button id="moins" aria-label="Un adversaire de moins">−</button><output id="nbAdv">1</output><button id="plus" aria-label="Un adversaire de plus">+</button></div>
     </div>
     <div id="listeAdv"></div>
     <footer id="mention">Pour argent fictif et parties privées.</footer>
+    </section>
   </main>
 
   <nav id="clavier">
