@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brelan">
+<meta name="theme-color" content="#0c1f16">
+<title>Brelan</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --fond: #0c1f16; --tete: #0f2a1d; --zone: #133524; --bord: #1f4a33; --clavier: #0a1912;
+    --texte: #eef3ef; --doux: #9db5a6; --faible: #5f7a69;
+    --rouge: #ff5147; --gris: #b9c2bc; --orange: #ffa21f; --vert: #35d36a;
+    --carte: #fbfaf6; --carte-rouge: #d0211c; --carte-noire: #15171a;
+    --accent: #ffd86b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--fond); color: var(--texte); font: 16px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         overscroll-behavior: none; }
+  button { font: inherit; color: inherit; border: 0; touch-action: manipulation; cursor: pointer; }
+  button:disabled { cursor: default; }
+  #app { height: 100vh; height: 100dvh; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; }
+
+  /* --- Résultat (haut) --- */
+  #resultat { background: var(--tete); padding: calc(8px + env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--bord); }
+  .l1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+  .l1 .boutons { flex: none; }
+  #pct { font-size: clamp(54px, 18vw, 84px); font-weight: 800; line-height: .95; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+  #pct small { font-size: .5em; letter-spacing: 0; margin-left: 2px; }
+  #pct.attente { color: var(--faible); }
+  .perime { opacity: .55; transition: opacity .15s; }
+  #nouvelle { min-height: 44px; max-width: 92px; padding: 4px 12px; border-radius: 12px; background: #23503a; font-size: 14px; font-weight: 600; line-height: 1.1; }
+  #conseil { font-size: 40px; font-weight: 800; line-height: 1.05; margin-top: 4px; letter-spacing: .5px; }
+  #conseil.c-rouge { color: var(--rouge); } #conseil.c-gris { color: var(--gris); }
+  #conseil.c-orange { color: var(--orange); } #conseil.c-vert { color: var(--vert); }
+  #conseil.c-attente { color: var(--doux); font-size: 22px; font-weight: 600; letter-spacing: 0; }
+  #justif { font-size: 16px; margin-top: 4px; min-height: 1.35em; }
+  #details { font-size: 13px; color: var(--doux); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  #details b { color: var(--texte); font-weight: 600; }
+  #estim { color: var(--accent); }
+
+  /* --- Milieu (défile) --- */
+  #milieu { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 16px; }
+  .rangee { display: flex; align-items: flex-start; gap: 10px; }
+  .rangee { --l: clamp(38px, calc((100vw - 32px - 10px - 30px) / 7), 62px); }
+  .bloc .etiq { font-size: 12px; color: var(--doux); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
+  .cases { display: flex; gap: 5px; }
+  .case, .carte { width: var(--l, 52px); height: calc(var(--l, 52px) * 1.4); border-radius: 7px; flex: none; }
+  .case { border: 2px dashed var(--bord); background: rgba(255,255,255,.02); padding: 0; }
+  .case.prochaine { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,216,107,.18); }
+  .carte { background: var(--carte); color: var(--carte-noire); display: flex; flex-direction: column; align-items: center; justify-content: center;
+           box-shadow: 0 2px 6px rgba(0,0,0,.35); padding: 0; position: relative; }
+  .carte.rouge { color: var(--carte-rouge); }
+  .carte .v { font-size: calc(var(--l, 52px) * .44); font-weight: 800; line-height: 1; }
+  .carte .s { font-size: calc(var(--l, 52px) * .46); line-height: 1; margin-top: 2px; }
+  .mini { --l: 34px; } .mini .case, .mini .carte { border-radius: 5px; }
+  .mini .carte .v { font-size: 15px; } .mini .carte .s { font-size: 15px; margin-top: 0; }
+  .sous { display: flex; gap: 5px; margin-top: 3px; }
+  .sous span { width: var(--l); text-align: center; font-size: 11px; color: var(--faible); }
+
+  .mises { display: flex; gap: 10px; margin-top: 10px; }
+  .mises label { flex: 1; display: flex; align-items: center; min-height: 46px; border-radius: 10px; border: 1px solid var(--bord);
+                 background: var(--zone); padding-left: 12px; font-size: 13px; color: var(--doux); text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+  .mises input { flex: 1; min-width: 0; width: 100%; min-height: 44px; font-size: 18px; padding: 0 10px; border: 0; background: transparent; color: var(--texte); outline: none; }
+  .mises label:focus-within { border-color: var(--accent); }
+  .mises input::placeholder { color: var(--faible); font-size: 15px; }
+
+  .entete-adv { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+  .entete-adv h2 { font-size: 15px; margin: 0; color: var(--doux); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+  .pas { display: flex; align-items: center; gap: 6px; }
+  .pas button { width: 44px; height: 44px; border-radius: 12px; background: #23503a; font-size: 24px; font-weight: 700; }
+  .pas output { min-width: 28px; text-align: center; font-size: 22px; font-weight: 800; }
+  .adv { background: var(--zone); border-radius: 12px; padding: 8px; margin-top: 8px; }
+  .adv.couche { opacity: .45; }
+  .adv .tete { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  .adv .nom { font-weight: 700; }
+  .adv .avant { font-size: 12px; color: var(--accent); }
+  .adv .droite { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .adv .ses { min-height: 44px; padding: 0 10px; border-radius: 10px; background: transparent; border: 1px solid var(--bord); color: var(--doux); font-size: 13px; }
+  .adv .ses.actif { border-color: var(--accent); color: var(--accent); }
+  .actions { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 4px; }
+  .actions button { min-height: 44px; border-radius: 9px; background: #1b4430; font-size: 12px; font-weight: 600; padding: 0 2px; }
+  .actions button.actif { background: var(--texte); color: #0c1f16; }
+  .actions button.actif.a-couche { background: var(--rouge); color: #fff; }
+  #mention { margin-top: 22px; text-align: center; font-size: 12px; color: var(--faible); user-select: none; -webkit-user-select: none; }
+
+  /* --- Clavier (bas, sous le pouce) --- */
+  #clavier { background: var(--clavier); border-top: 1px solid var(--bord); padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); }
+  #indic { font-size: 13px; color: var(--doux); text-align: center; min-height: 24px; display: flex; align-items: center; justify-content: center; }
+  #indic button { min-height: 32px; padding: 0 12px; border-radius: 8px; background: rgba(255,216,107,.15); color: var(--accent); font-size: 13px; font-weight: 600; }
+  .couleurs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px; }
+  .couleurs button { height: 54px; border-radius: 12px; background: var(--carte); color: var(--carte-noire); font-size: 32px; line-height: 1; }
+  .couleurs button.rouge { color: var(--carte-rouge); }
+  .couleurs button.choisie { outline: 4px solid var(--accent); outline-offset: -4px; }
+  .valeurs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 6px; }
+  .valeurs button { height: 48px; border-radius: 10px; background: #1e4732; font-size: 21px; font-weight: 800; }
+  .valeurs.sans-couleur button.v { opacity: .45; }
+  .valeurs button.v:disabled, .couleurs button:disabled { opacity: .18; }
+  #annuler { font-size: 12px; font-weight: 700; background: #3a2a1a; color: #ffcf9a; }
+  #annuler:disabled { opacity: .35; }
+  .secoue { animation: secoue .3s; }
+  @keyframes secoue { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  /* --- Table 3D (étape 4) --- */
+  #zoneCartes { position: relative; }
+  #zoneCartes:not(.mode3d) { padding-top: 30px; }
+  /* Mode léger : le message passe en haut à gauche, au-dessus des cartes (2 lignes au plus), sans rien recouvrir. */
+  #zoneCartes:not(.mode3d) #info3d { top: 0; bottom: auto; right: 118px; text-align: left; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
+  #scene3d { display: none; height: clamp(150px, min(50vw, 26vh), 240px); margin: -6px -16px 0; }
+  #scene3d canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+  #zoneCartes.mode3d #scene3d { display: block; }
+  #zoneCartes.mode3d .rangee { display: none; }
+  #basculeLeger { position: absolute; top: -6px; right: -6px; z-index: 2; min-height: 32px; padding: 0 12px; border-radius: 16px;
+                  background: rgba(0,0,0,.35); color: var(--doux); font-size: 12px; font-weight: 600; }
+  #basculeLeger[aria-pressed="true"] { background: rgba(255,216,107,.14); color: var(--accent); }
+  #basculeLeger:disabled { opacity: .6; }
+  #info3d { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: 12px; color: var(--accent);
+            pointer-events: none; opacity: 0; transition: opacity .3s; }
+
+  /* --- Réglages (étape 5) --- */
+  .l1 .boutons { display: flex; gap: 6px; }
+  #reglagesBtn { width: 44px; height: 44px; border-radius: 12px; background: #23503a; display: flex; align-items: center; justify-content: center; padding: 0; }
+  #reglagesBtn svg { width: 22px; height: 22px; fill: var(--texte); }
+  #panneau { display: none; position: fixed; inset: 0; z-index: 9; background: rgba(0,0,0,.55); }
+  #panneau.ouvert { display: flex; align-items: flex-end; justify-content: center; }
+  #panneau .feuille { width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--tete);
+                      border-radius: 18px 18px 0 0; padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .feuille .entete { display: flex; align-items: center; justify-content: space-between; }
+  .feuille h2 { font-size: 20px; margin: 0; }
+  .feuille h3 { font-size: 13px; text-transform: uppercase; color: var(--doux); letter-spacing: .6px; margin: 18px 0 4px; }
+  .feuille .petit { font-size: 13px; color: var(--doux); }
+  .reglage { padding: 8px 0 2px; border-bottom: 1px solid var(--bord); }
+  .reglage .lib { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; }
+  .reglage output { font-weight: 700; white-space: nowrap; color: var(--accent); }
+  .reglage input[type=range] { width: 100%; height: 36px; margin: 2px 0 0; accent-color: #ffd86b; }
+  .resume { font-size: 13px; color: var(--doux); margin-top: 8px; }
+  .feuille button.b { min-height: 44px; padding: 0 14px; border-radius: 10px; background: #23503a; font-size: 15px; font-weight: 600; }
+  .feuille .rangee-b { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .feuille kbd { font: 600 12px ui-monospace, Menlo, monospace; background: #1b4430; border-radius: 4px; padding: 1px 5px; }
+
+  /* --- Tests (caché) --- */
+  #tests { display: none; position: fixed; inset: 0; background: var(--fond); overflow: auto; padding: calc(12px + env(safe-area-inset-top)) 16px 24px; z-index: 10; }
+  #tests table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #tests td { padding: 5px 6px; border-bottom: 1px solid #22362a; vertical-align: top; }
+  #tests .ok { color: var(--vert); font-weight: 700; } #tests .ko { color: var(--rouge); font-weight: 700; }
+  #tests .groupe td { color: var(--doux); padding-top: 12px; font-weight: 600; }
+  #fermerTests { min-height: 44px; padding: 0 16px; border-radius: 10px; background: #23503a; float: right; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="resultat" aria-live="polite">
+    <div class="l1">
+      <div id="pct" class="attente">—</div>
+      <div class="boutons">
+        <button id="reglagesBtn" aria-label="Réglages" title="Réglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.2 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
+        <button id="nouvelle">Nouvelle main</button>
+      </div>
+    </div>
+    <div id="conseil" class="c-attente">Saisis tes 2 cartes</div>
+    <div id="justif"></div>
+    <div id="details"></div>
+  </header>
+
+  <main id="milieu">
+    <div id="zoneCartes">
+    <button id="basculeLeger" aria-pressed="false">Mode léger</button>
+    <div id="scene3d"></div>
+    <div class="rangee">
+      <div class="bloc"><div class="etiq">Toi</div><div class="cases" id="z-moi"></div></div>
+      <div class="bloc"><div class="etiq">Tableau</div><div class="cases" id="z-tab"></div>
+        <div class="sous"><span>flop</span><span>flop</span><span>flop</span><span>turn</span><span>river</span></div></div>
+    </div>
+    <div id="info3d" aria-live="polite"></div>
+    </div>
+    <div class="mises">
+      <label>Pot<input id="pot" inputmode="decimal" placeholder="facultatif" autocomplete="off"></label>
+      <label>À suivre<input id="suivre" inputmode="decimal" placeholder="facultatif" autocomplete="off"></label>
+    </div>
+    <div class="entete-adv">
+      <h2>Adversaires</h2>
+      <div class="pas"><button id="moins" aria-label="Un adversaire de moins">−</button><output id="nbAdv">1</output><button id="plus" aria-label="Un adversaire de plus">+</button></div>
+    </div>
+    <div id="listeAdv"></div>
+    <footer id="mention">Pour argent fictif et parties privées.</footer>
+  </main>
+
+  <nav id="clavier">
+    <div id="indic"></div>
+    <div class="couleurs" id="couleurs"></div>
+    <div class="valeurs sans-couleur" id="valeurs"></div>
+  </nav>
+</div>
+
+<div id="panneau" role="dialog" aria-modal="true" aria-labelledby="titreReglages">
+  <div class="feuille">
+    <div class="entete"><h2 id="titreReglages">Réglages</h2><button class="b" id="fermerReglages">Fermer</button></div>
+    <div id="champs"></div>
+    <div class="rangee-b">
+      <button class="b" id="defauts">Valeurs de départ</button>
+      <button class="b" id="verifier">Vérifier les calculs</button>
+    </div>
+    <h3>Clavier (sur Mac)</h3>
+    <p class="petit">Couleur : <kbd>P</kbd> pique, <kbd>C</kbd> cœur, <kbd>K</kbd> carreau, <kbd>T</kbd> trèfle — puis valeur :
+      <kbd>2</kbd>…<kbd>9</kbd>, <kbd>0</kbd> pour 10, <kbd>V</kbd>, <kbd>D</kbd>, <kbd>R</kbd>, <kbd>A</kbd>.
+      <kbd>⌫</kbd> annule la dernière carte, <kbd>Échap</kbd> efface la couleur choisie, <kbd>Maj</kbd>+<kbd>N</kbd> : nouvelle main.</p>
+    <p class="petit">Réglages gardés sur cet appareil uniquement. Aucune donnée ne quitte cet appareil.<br>Pour argent fictif et parties privées.</p>
+  </div>
+</div>
+
+<div id="tests">
+  <button id="fermerTests">Fermer</button>
+  <h2 style="font-size:17px">Tests intégrés <span id="bilan"></span></h2>
+  <table><tbody id="lignes"></tbody></table>
+</div>
+
+<!-- ================================================================== -->
+<!-- ICÔNE D'ÉCRAN D'ACCUEIL (étape 5) : dessinée en code au chargement, déclarée pour iPhone et Mac. -->
+<!-- ================================================================== -->
+<script id="icone">
+(function () {
+  try {
+    var N = 180, cv = document.createElement('canvas'); cv.width = cv.height = N;
+    var g = cv.getContext('2d');
+    var gr = g.createRadialGradient(N / 2, N * 0.45, 10, N / 2, N / 2, N * 0.75);
+    gr.addColorStop(0, '#2a8c52'); gr.addColorStop(1, '#0b3a22'); g.fillStyle = gr; g.fillRect(0, 0, N, N);
+    var gb = g.createLinearGradient(0, 0, 0, N); gb.addColorStop(0, '#8a3a1e'); gb.addColorStop(1, '#4a140a');
+    g.lineWidth = 12; g.strokeStyle = gb; g.beginPath(); g.ellipse(N / 2, N / 2 + 4, N * 0.42, N * 0.33, 0, 0, Math.PI * 2); g.stroke();
+    function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+    function sym(coeur, x, y, t) {
+      g.save(); g.translate(x, y); g.scale(t, t); g.beginPath();
+      if (coeur) { g.moveTo(0, .48); g.bezierCurveTo(-.62, .05, -.55, -.5, -.27, -.5); g.bezierCurveTo(-.1, -.5, 0, -.38, 0, -.25); g.bezierCurveTo(0, -.38, .1, -.5, .27, -.5); g.bezierCurveTo(.55, -.5, .62, .05, 0, .48); }
+      else { g.moveTo(0, -.5); g.bezierCurveTo(-.62, -.08, -.55, .36, -.27, .36); g.bezierCurveTo(-.1, .36, 0, .26, 0, .16); g.bezierCurveTo(0, .26, .1, .36, .27, .36); g.bezierCurveTo(.55, .36, .62, -.08, 0, -.5); g.closePath(); g.moveTo(0, .1); g.lineTo(.17, .5); g.lineTo(-.17, .5); }
+      g.closePath(); g.fill(); g.restore();
+    }
+    function carte(cx, cy, a, coeur) {
+      g.save(); g.translate(cx, cy); g.rotate(a); g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 10; g.shadowOffsetY = 4;
+      rr(-34, -48, 68, 96, 9); g.fillStyle = '#fbfaf6'; g.fill(); g.shadowColor = 'transparent';
+      g.fillStyle = coeur ? '#d0211c' : '#15171a'; g.textAlign = 'center';
+      g.font = '800 46px -apple-system, Helvetica, Arial, sans-serif'; g.fillText('A', 0, 4); sym(coeur, 0, 28, 30); g.restore();
+    }
+    carte(60, 94, -0.26, false); carte(120, 94, 0.26, true);
+    var url = cv.toDataURL('image/png');
+    [['apple-touch-icon', '180x180'], ['icon', '180x180']].forEach(function (x) {
+      var l = document.createElement('link'); l.rel = x[0]; l.sizes = x[1]; l.href = url; document.head.appendChild(l);
+    });
+    var man = { name: 'Brelan', short_name: 'Brelan', display: 'standalone', orientation: 'portrait',
+                background_color: '#0c1f16', theme_color: '#0c1f16', lang: 'fr',
+                icons: [{ src: url, sizes: '180x180', type: 'image/png' }] };
+    var lm = document.createElement('link'); lm.rel = 'manifest';
+    lm.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(man));
+    document.head.appendChild(lm);
+  } catch (e) { /* sans icône, l'application fonctionne pareil */ }
+})();
+</script>
+
+<!-- ================================================================== -->
+<!-- MOTEUR : aucun accès à l'écran. Ce bloc est aussi chargé dans le Web Worker. -->
+<!-- ================================================================== -->
+<script id="moteur">
+/* ---------------- RÉGLAGES (modifiables) ---------------- */
+var REGLAGES = {
+  TIRAGES_MIN: 20000,          // minimum de tirages par calcul
+  TIRAGES_CIBLE: 60000,        // précision visée : environ ± 0,4 point
+  TAILLE_LOT: 5000,            // tirages par lot : affichage progressif, calcul interrompable
+  DUREE_MAX_MS: 1500,          // au-delà, on s'arrête dès que TIRAGES_MIN est atteint
+  LIMITE_EXHAUSTIF: 50000,     // sous ce nombre de combinaisons, on calcule tout exactement
+  MARGE_SUIVRE: 0,             // chances exigées au-dessus de la cote du pot (0 = point d'équilibre)
+  MULT_MISER: 1.5,             // miser si chances >= 1,5 x part équitable...
+  PLAFOND_MISER: 1,            // ...seuil plafonné à cette valeur (1 = pas de plafond, plan validé)
+  MULT_RELANCER: 2.0,          // relancer si chances >= 2 x part équitable...
+  PLAFOND_RELANCER: 1,         // ...seuil plafonné à cette valeur (1 = pas de plafond, plan validé)
+  MIN_RELANCER: 0.60,          // ...et toujours au moins 60 %
+  SEUIL_OUT: 0.50,             // une carte aide si elle te rend gagnant à 50 % ou plus
+  TIRAGES_OUTS: 800,           // tirages par carte candidate
+  LIMITE_EXHAUSTIF_OUTS: 2000,
+  ESSAIS_FOURCHETTE: 300,      // tirages maximum pour trouver une main dans la fourchette
+  // Part des meilleures mains de départ gardée selon l'action adverse (estimation).
+  FOURCHETTE: { mise: 0.40, suivre: 0.60, relance: 0.20, tapis: 0.12 }
+};
+function appliquerReglages(r) {
+  for (var k in r) {
+    if (k === 'FOURCHETTE') { for (var a in r.FOURCHETTE) REGLAGES.FOURCHETTE[a] = r.FOURCHETTE[a]; }
+    else if (k in REGLAGES) REGLAGES[k] = r[k];
+  }
+}
+
+/* ---------------- Cartes ----------------
+   Carte = nombre 0..51. valeur = c >> 2 (0 = deux ... 12 = as), couleur = c & 3. */
+var SYMBOLES_COULEUR = ['♣', '♦', '♥', '♠'];
+var NOMS_VALEUR = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'V', 'D', 'R', 'A'];
+function texteCarte(c) { return NOMS_VALEUR[c >> 2] + SYMBOLES_COULEUR[c & 3]; }
+var LECTURE_VALEUR = { '2':0,'3':1,'4':2,'5':3,'6':4,'7':5,'8':6,'9':7,'10':8,'T':8,'V':9,'J':9,'D':10,'Q':10,'R':11,'K':11,'A':12 };
+var LECTURE_COULEUR = { '♣':0,'T':0,'♦':1,'K':1,'♥':2,'C':2,'♠':3,'P':3 };
+function lireCarte(t) {
+  t = String(t).replace(/️/g, '').trim().toUpperCase();
+  var c = t.slice(-1), v = t.slice(0, -1);
+  if (!(v in LECTURE_VALEUR) || !(c in LECTURE_COULEUR)) throw new Error('Carte illisible : « ' + t + ' »');
+  return LECTURE_VALEUR[v] * 4 + LECTURE_COULEUR[c];
+}
+function lireCartes(s) {
+  s = String(s || '').trim();
+  if (!s) return [];
+  return s.split(/[\s,]+/).filter(Boolean).map(lireCarte);
+}
+function alea(n) { return (Math.random() * n) | 0; }
+
+/* ---------------- Évaluation d'une main (1 à 7 cartes) ----------------
+   Score entier : catégorie << 20, puis valeurs départageantes par tranches de 4 bits (valeur + 1).
+   Catégories : 0 carte haute, 1 paire, 2 deux paires, 3 brelan, 4 quinte, 5 couleur, 6 full, 7 carré, 8 quinte flush. */
+var _NV = new Int8Array(13), _NC = new Int8Array(4), _MC = new Int32Array(4);
+function hauteurQuinte(m) {
+  for (var h = 12; h >= 4; h--) if (((m >> (h - 4)) & 31) === 31) return h;
+  if ((m & 0x100F) === 0x100F) return 3; // as, 2, 3, 4, 5
+  return -1;
+}
+function meilleures(m, k, dec) {
+  var v = 0;
+  for (var r = 12; r >= 0 && k > 0; r--) if (m & (1 << r)) { v |= (r + 1) << dec; dec -= 4; k--; }
+  return v;
+}
+function evaluer(cs, n) {
+  var i, c, r, s, masque = 0;
+  _NV.fill(0); _NC.fill(0); _MC.fill(0);
+  for (i = 0; i < n; i++) { c = cs[i]; r = c >> 2; s = c & 3; _NV[r]++; _NC[s]++; _MC[s] |= 1 << r; masque |= 1 << r; }
+  // Avec 7 cartes au plus, une couleur exclut le carré et le full : on peut la tester d'abord.
+  for (s = 0; s < 4; s++) if (_NC[s] >= 5) {
+    var hf = hauteurQuinte(_MC[s]);
+    if (hf >= 0) return (8 << 20) | ((hf + 1) << 16);
+    return (5 << 20) | meilleures(_MC[s], 5, 16);
+  }
+  var carre = -1, b1 = -1, b2 = -1, p1 = -1, p2 = -1;
+  for (r = 12; r >= 0; r--) {
+    var k = _NV[r];
+    if (k === 4) carre = r;
+    else if (k === 3) { if (b1 < 0) b1 = r; else if (b2 < 0) b2 = r; }
+    else if (k === 2) { if (p1 < 0) p1 = r; else if (p2 < 0) p2 = r; }
+  }
+  if (carre >= 0) return (7 << 20) | ((carre + 1) << 16) | meilleures(masque & ~(1 << carre), 1, 12);
+  if (b1 >= 0 && (b2 >= 0 || p1 >= 0)) return (6 << 20) | ((b1 + 1) << 16) | ((Math.max(b2, p1) + 1) << 12);
+  var hq = hauteurQuinte(masque);
+  if (hq >= 0) return (4 << 20) | ((hq + 1) << 16);
+  if (b1 >= 0) return (3 << 20) | ((b1 + 1) << 16) | meilleures(masque & ~(1 << b1), 2, 12);
+  if (p1 >= 0 && p2 >= 0) return (2 << 20) | ((p1 + 1) << 16) | ((p2 + 1) << 12) | meilleures(masque & ~(1 << p1) & ~(1 << p2), 1, 8);
+  if (p1 >= 0) return (1 << 20) | ((p1 + 1) << 16) | meilleures(masque & ~(1 << p1), 3, 12);
+  return meilleures(masque, 5, 16);
+}
+var NOMS_CATEGORIE = ['Carte haute', 'Paire', 'Deux paires', 'Brelan', 'Quinte', 'Couleur', 'Full', 'Carré', 'Quinte flush', 'Quinte flush royale'];
+function categorie(score) { var c = score >> 20; return (c === 8 && ((score >> 16) & 15) === 13) ? 9 : c; }
+var V_SING = ['deux','trois','quatre','cinq','six','sept','huit','neuf','dix','valet','dame','roi','as'];
+var V_PLUR = ['deux','trois','quatre','cinq','six','sept','huit','neuf','dix','valets','dames','rois','as'];
+function deValeur(r) { return r === 12 ? "d'as" : 'de ' + V_PLUR[r]; }
+function nomMain(score) {
+  var a = ((score >> 16) & 15) - 1, b = ((score >> 12) & 15) - 1;
+  switch (score >> 20) {
+    case 0: return 'Hauteur ' + V_SING[a];
+    case 1: return 'Paire ' + deValeur(a);
+    case 2: return 'Deux paires, ' + V_PLUR[a] + ' et ' + V_PLUR[b];
+    case 3: return 'Brelan ' + deValeur(a);
+    case 4: return 'Quinte hauteur ' + V_SING[a];
+    case 5: return 'Couleur hauteur ' + V_SING[a];
+    case 6: return 'Full aux ' + V_PLUR[a] + ' par les ' + V_PLUR[b];
+    case 7: return 'Carré ' + deValeur(a);
+    case 8: return a === 12 ? 'Quinte flush royale' : 'Quinte flush hauteur ' + V_SING[a];
+  }
+  return '';
+}
+
+/* ---------------- Fourchettes de mains de départ ----------------
+   Les 169 types de mains de départ sont classés par une note de force (formule de Chen),
+   pondérés par leur nombre de combinaisons (paire 6, assortie 4, dépareillée 12).
+   Une main est « dans les X % meilleures » si le milieu de son type tombe sous X. [Approximation] */
+function noteChen(a, b, assortie) {   // a >= b, valeurs 0..12
+  var pts = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10];
+  var s = pts[a];
+  if (a === b) return Math.ceil(Math.max(5, s * 2));
+  if (assortie) s += 2;
+  var ecart = a - b - 1;
+  s -= [0, 1, 2, 4, 5][Math.min(ecart, 4)];
+  if (ecart <= 1 && a < 10) s += 1;
+  return Math.ceil(s);
+}
+var PERCENTILE = (function () {
+  var types = [];
+  for (var a = 12; a >= 0; a--) for (var b = a; b >= 0; b--) {
+    if (a === b) types.push({ a: a, b: b, s: 0, n: 6, v: noteChen(a, b, false) });
+    else {
+      types.push({ a: a, b: b, s: 1, n: 4, v: noteChen(a, b, true) });
+      types.push({ a: a, b: b, s: 0, n: 12, v: noteChen(a, b, false) });
+    }
+  }
+  types.sort(function (x, y) {
+    return (y.v - x.v) || ((y.a === y.b) - (x.a === x.b)) || (y.s - x.s) || (y.a - x.a) || (y.b - x.b);
+  });
+  var t = new Float64Array(338), cumul = 0;
+  for (var i = 0; i < types.length; i++) {
+    var k = types[i];
+    t[k.a * 13 + k.b + (k.s ? 169 : 0)] = (cumul + k.n / 2) / 1326;
+    cumul += k.n;
+  }
+  return t;
+})();
+function percentileMain(c1, c2) {
+  var a = c1 >> 2, b = c2 >> 2, t;
+  if (a < b) { t = a; a = b; b = t; }
+  var s = (a !== b && (c1 & 3) === (c2 & 3)) ? 169 : 0;
+  return PERCENTILE[a * 13 + b + s];
+}
+function dansFourchette(c1, c2, w) { return percentileMain(c1, c2) < w; }
+function largeurPourAction(action) {
+  var w = REGLAGES.FOURCHETTE[action];
+  return (typeof w === 'number' && w > 0 && w < 1) ? w : 1;
+}
+
+/* ---------------- Préparation d'un calcul ----------------
+   etat = { moi:[c,c], tableau:[0..5 cartes], adversaires:[{ action, cartes:[c,c] | null }] } */
+function preparer(etat) {
+  if (!etat || !etat.moi || etat.moi.length !== 2) return null;
+  var tableau = etat.tableau || [];
+  if (tableau.length > 5) return null;
+  var morte = new Uint8Array(52), toutes = etat.moi.concat(tableau);
+  var advs = etat.adversaires || [];
+  for (var i = 0; i < advs.length; i++) if (advs[i].cartes && advs[i].cartes.length === 2) toutes = toutes.concat(advs[i].cartes);
+  for (i = 0; i < toutes.length; i++) {
+    var c = toutes[i];
+    if (!(c >= 0 && c < 52) || morte[c]) return null;   // carte invalide ou en double
+    morte[c] = 1;
+  }
+  var connus = [], largeurs = [];
+  for (i = 0; i < advs.length; i++) {
+    var a = advs[i];
+    if (a.action === 'couche') continue;                 // retiré du calcul (ses cartes restent hors du paquet)
+    if (a.cartes && a.cartes.length === 2) connus.push(a.cartes.slice());
+    else largeurs.push(largeurPourAction(a.action));
+  }
+  largeurs.sort(function (x, y) { return x - y; });     // fourchettes serrées tirées d'abord
+  var paquet = [];
+  for (c = 0; c < 52; c++) if (!morte[c]) paquet.push(c);
+  return { moi: etat.moi.slice(), tableau: tableau.slice(), connus: connus, largeurs: largeurs,
+           paquet: paquet, manque: 5 - tableau.length };
+}
+function nouvelAcc() { return { g: 0, e: 0, p: 0, part: 0, n: 0 }; }
+function resultat(acc, p, exact) {
+  if (!acc.n) return null;
+  var est = false;
+  for (var i = 0; i < p.largeurs.length; i++) if (p.largeurs[i] < 1) est = true;
+  return { gagne: acc.g / acc.n, egalite: acc.e / acc.n, perd: acc.p / acc.n, part: acc.part / acc.n,
+           nG: acc.g, nE: acc.e, nP: acc.p, echantillons: acc.n, exact: exact,
+           adversaires: p.connus.length + p.largeurs.length, estimation: est };
+}
+function combinaisons(n, k) {
+  if (k < 0 || k > n) return 0;
+  var r = 1;
+  for (var i = 1; i <= k; i++) r = r * (n - k + i) / i;
+  return Math.round(r);
+}
+function nbCombinaisons(p) {
+  var L = p.paquet.length, u = p.largeurs.length;
+  if (u > 1) return Infinity;
+  var c = 1;
+  if (u === 1) { c = L * (L - 1) / 2; L -= 2; }
+  return c * combinaisons(L, p.manque);
+}
+
+/* ---------------- Simulation (tirages au hasard) ---------------- */
+function simuler(p, n, acc) {
+  var paquet = p.paquet, L = paquet.length, manque = p.manque, nt = p.tableau.length;
+  var nbC = p.connus.length, nbI = p.largeurs.length, nbA = nbC + nbI;
+  var h = new Int32Array(7), o = new Int32Array(7), adv = new Int32Array(nbA * 2);
+  var k, i, j, t, pos, w, essai, s, meilleur, nb, sh, ESSAIS = REGLAGES.ESSAIS_FOURCHETTE;
+  for (k = 0; k < nbC; k++) { adv[2 * k] = p.connus[k][0]; adv[2 * k + 1] = p.connus[k][1]; }
+  h[0] = p.moi[0]; h[1] = p.moi[1];
+  for (k = 0; k < nt; k++) h[2 + k] = p.tableau[k];
+  for (var it = 0; it < n; it++) {
+    pos = 0;
+    for (k = 0; k < nbI; k++) {
+      w = p.largeurs[k];
+      if (w >= 1) {
+        i = pos + alea(L - pos); t = paquet[pos]; paquet[pos] = paquet[i]; paquet[i] = t;
+        j = pos + 1 + alea(L - pos - 1); t = paquet[pos + 1]; paquet[pos + 1] = paquet[j]; paquet[j] = t;
+      } else {
+        for (essai = 0; essai < ESSAIS; essai++) {
+          i = pos + alea(L - pos); j = pos + alea(L - pos - 1); if (j >= i) j++;
+          if (dansFourchette(paquet[i], paquet[j], w)) break;
+        }
+        t = paquet[pos]; paquet[pos] = paquet[i]; paquet[i] = t;
+        if (j === pos) j = i;
+        t = paquet[pos + 1]; paquet[pos + 1] = paquet[j]; paquet[j] = t;
+      }
+      adv[2 * (nbC + k)] = paquet[pos]; adv[2 * (nbC + k) + 1] = paquet[pos + 1]; pos += 2;
+    }
+    for (k = 0; k < manque; k++) {
+      i = pos + alea(L - pos); t = paquet[pos]; paquet[pos] = paquet[i]; paquet[i] = t;
+      h[2 + nt + k] = paquet[pos]; pos++;
+    }
+    sh = evaluer(h, 7);
+    for (k = 2; k < 7; k++) o[k] = h[k];
+    meilleur = -1; nb = 0;
+    for (k = 0; k < nbA; k++) {
+      o[0] = adv[2 * k]; o[1] = adv[2 * k + 1]; s = evaluer(o, 7);
+      if (s > meilleur) { meilleur = s; nb = 1; } else if (s === meilleur) nb++;
+    }
+    if (sh > meilleur) { acc.g++; acc.part += 1; }
+    else if (sh === meilleur) { acc.e++; acc.part += 1 / (nb + 1); }
+    else acc.p++;
+    acc.n++;
+  }
+}
+
+/* ---------------- Calcul exhaustif (toutes les combinaisons) ----------------
+   Possible quand au plus un adversaire a des cartes inconnues. */
+function exhaustif(p) {
+  var acc = nouvelAcc(), paquet = p.paquet, L = paquet.length, manque = p.manque, nt = p.tableau.length;
+  var h = new Int32Array(7), o = new Int32Array(7), connus = p.connus, k;
+  h[0] = p.moi[0]; h[1] = p.moi[1];
+  for (k = 0; k < nt; k++) h[2 + k] = p.tableau[k];
+  var u = p.largeurs.length, w = u ? p.largeurs[0] : 1, exclu = new Uint8Array(L);
+  function feuille(oi, oj) {
+    var sh = evaluer(h, 7), s, meilleur = -1, nb = 0, q;
+    for (q = 2; q < 7; q++) o[q] = h[q];
+    for (q = 0; q < connus.length; q++) {
+      o[0] = connus[q][0]; o[1] = connus[q][1]; s = evaluer(o, 7);
+      if (s > meilleur) { meilleur = s; nb = 1; } else if (s === meilleur) nb++;
+    }
+    if (oi >= 0) {
+      o[0] = paquet[oi]; o[1] = paquet[oj]; s = evaluer(o, 7);
+      if (s > meilleur) { meilleur = s; nb = 1; } else if (s === meilleur) nb++;
+    }
+    if (sh > meilleur) { acc.g++; acc.part += 1; }
+    else if (sh === meilleur) { acc.e++; acc.part += 1 / (nb + 1); }
+    else acc.p++;
+    acc.n++;
+  }
+  function completer(depart, reste, oi, oj) {
+    if (reste === 0) { feuille(oi, oj); return; }
+    for (var x = depart; x <= L - reste; x++) {
+      if (exclu[x]) continue;
+      h[2 + nt + (manque - reste)] = paquet[x];
+      completer(x + 1, reste - 1, oi, oj);
+    }
+  }
+  if (u === 1) {
+    for (var i = 0; i < L; i++) for (var j = i + 1; j < L; j++) {
+      if (w < 1 && !dansFourchette(paquet[i], paquet[j], w)) continue;
+      exclu[i] = 1; exclu[j] = 1;
+      completer(0, manque, i, j);
+      exclu[i] = 0; exclu[j] = 0;
+    }
+  } else completer(0, manque, -1, -1);
+  return acc;
+}
+
+/* Calcul complet en une fois (utilisé par les tests et par les cartes qui aident). */
+function calculerChances(etat, opts) {
+  opts = opts || {};
+  var p = preparer(etat);
+  if (!p) return null;
+  var limite = (opts.limiteExhaustif != null) ? opts.limiteExhaustif : REGLAGES.LIMITE_EXHAUSTIF;
+  if (!opts.forcerSimulation && nbCombinaisons(p) <= limite) return resultat(exhaustif(p), p, true);
+  var acc = nouvelAcc();
+  simuler(p, opts.tirages || REGLAGES.TIRAGES_CIBLE, acc);
+  return resultat(acc, p, false);
+}
+
+/* ---------------- Cartes qui t'aident ----------------
+   Une carte aide si : elle fait monter ta main d'une catégorie, ET avec elle tu deviens
+   gagnant à SEUIL_OUT ou plus (contre les mêmes adversaires), ET tes chances montent. */
+function estOut(etat, c, partActuelle) {
+  var base = etat.moi.concat(etat.tableau);
+  var avant = evaluer(base, base.length) >> 20;
+  var avec = base.concat([c]);
+  if ((evaluer(avec, avec.length) >> 20) <= avant) return false;
+  var r = calculerChances({ moi: etat.moi, tableau: etat.tableau.concat([c]), adversaires: etat.adversaires },
+                          { tirages: REGLAGES.TIRAGES_OUTS, limiteExhaustif: REGLAGES.LIMITE_EXHAUSTIF_OUTS });
+  return !!r && r.part >= REGLAGES.SEUIL_OUT && r.part > partActuelle;
+}
+function bilanOuts(liste, nbTableau) {
+  var mult = nbTableau === 3 ? 4 : 2;
+  return { nombre: liste.length, cartes: liste, multiplicateur: mult, repere: Math.min(100, liste.length * mult) };
+}
+function cartesQuiAident(etat, partActuelle) {
+  var nt = (etat.tableau || []).length;
+  if (nt !== 3 && nt !== 4) return null;
+  var p = preparer(etat);
+  if (!p) return null;
+  var cand = p.paquet.slice().sort(function (a, b) { return a - b; }), liste = [];
+  for (var i = 0; i < cand.length; i++) if (estOut(etat, cand[i], partActuelle)) liste.push(cand[i]);
+  return bilanOuts(liste, nt);
+}
+
+/* ---------------- Conseil ----------------
+   e = { part (chances, égalités partagées), joueursEnJeu (moi compris), pot, aSuivre, miseEnFace } */
+function txtPct(x, dec) { return (dec ? (x * 100).toFixed(1).replace('.', ',') : String(Math.round(x * 100))) + ' %'; }
+function deuxPct(a, b) {
+  var fin = Math.round(a * 100) === Math.round(b * 100) && a !== b;
+  return [txtPct(a, fin), txtPct(b, fin)];
+}
+function seuilMiser(juste) { return Math.min(REGLAGES.MULT_MISER * juste, REGLAGES.PLAFOND_MISER); }
+function seuilRelancer(juste) { return Math.max(Math.min(REGLAGES.MULT_RELANCER * juste, REGLAGES.PLAFOND_RELANCER), REGLAGES.MIN_RELANCER); }
+function conseiller(e) {
+  var n = e.joueursEnJeu, part = e.part;
+  if (n <= 1) return { action: 'CHECKER', justification: 'Tous tes adversaires se sont couchés : le pot est pour toi.' };
+  var juste = 1 / n;
+  var pot = (typeof e.pot === 'number' && isFinite(e.pot) && e.pot >= 0) ? e.pot : null;
+  var aS = (typeof e.aSuivre === 'number' && isFinite(e.aSuivre) && e.aSuivre > 0) ? e.aSuivre : 0;
+  var fort = part >= seuilRelancer(juste);
+  if (aS > 0 && pot !== null) {
+    var cote = aS / (pot + aS), t = deuxPct(part, cote);
+    var debut = t[0] + ' de chances, tu dois payer ' + t[1] + ' du pot : ';
+    if (part < cote + REGLAGES.MARGE_SUIVRE) return { action: 'SE COUCHER', justification: debut + "suivre n'est pas rentable." };
+    if (fort) return { action: 'RELANCER', justification: debut + 'tu es nettement devant, relance.' };
+    return { action: 'SUIVRE', justification: debut + 'suivre est rentable.' };
+  }
+  var tj = deuxPct(part, juste), ta = ' (ta part équitable à ' + n + ' joueurs)';
+  if (aS > 0 || e.miseEnFace) {
+    if (part < juste) return { action: 'SE COUCHER', justification: tj[0] + ' de chances, moins que ' + tj[1] + ta + ' : ne paie pas.' };
+    if (fort) return { action: 'RELANCER', justification: tj[0] + ' de chances, bien plus que ' + tj[1] + ta + ' : relance.' };
+    return { action: 'SUIVRE', justification: tj[0] + ' de chances, plus que ' + tj[1] + ta + ' : suis.' };
+  }
+  if (part >= seuilMiser(juste)) return { action: 'MISER', justification: tj[0] + ' de chances, bien plus que ' + tj[1] + ta + ' : mise.' };
+  return { action: 'CHECKER', justification: tj[0] + ' de chances, pas assez au-dessus de ' + tj[1] + ta + " : checke, c'est gratuit." };
+}
+
+/* ---------------- Calculateur par lots (Web Worker, ou fil principal en secours) ----------------
+   Messages reçus : { id, etat, reglages? } ou { id, type:'tests' }.
+   Messages envoyés : partiel, final, outs, test, testsFini, erreur. */
+function creerCalculateur(envoyer) {
+  var courant = 0;
+  return function (m) {
+    if (m.reglages) appliquerReglages(m.reglages);
+    if (m.type === 'tests') {
+      var liste = listeTests();
+      for (var i = 0; i < liste.length; i++) envoyer({ id: m.id, type: 'test', resultat: executerUnTest(liste[i]) });
+      envoyer({ id: m.id, type: 'testsFini' });
+      return;
+    }
+    courant = m.id;
+    var id = m.id, etat = m.etat, p = preparer(etat), t0 = Date.now();
+    if (!p) { envoyer({ id: id, type: 'erreur', message: 'Cartes en double ou incomplètes.' }); return; }
+    function finir(res) {
+      res.duree = Date.now() - t0;
+      envoyer({ id: id, type: 'final', resultat: res });
+      setTimeout(function () { outs(res.part); }, 0);
+    }
+    function outs(part) {
+      var nt = etat.tableau.length;
+      if (nt !== 3 && nt !== 4) { envoyer({ id: id, type: 'outs', outs: null }); return; }
+      var cand = preparer(etat).paquet, liste = [], idx = 0;
+      (function etape() {
+        if (id !== courant) return;
+        var t1 = Date.now();
+        while (idx < cand.length && Date.now() - t1 < 40) { if (estOut(etat, cand[idx], part)) liste.push(cand[idx]); idx++; }
+        if (idx < cand.length) setTimeout(etape, 0);
+        else envoyer({ id: id, type: 'outs', outs: bilanOuts(liste, nt) });
+      })();
+    }
+    if (nbCombinaisons(p) <= REGLAGES.LIMITE_EXHAUSTIF) { finir(resultat(exhaustif(p), p, true)); return; }
+    var acc = nouvelAcc();
+    (function lot() {
+      if (id !== courant) return;
+      simuler(p, REGLAGES.TAILLE_LOT, acc);
+      var fini = acc.n >= REGLAGES.TIRAGES_CIBLE || (acc.n >= REGLAGES.TIRAGES_MIN && Date.now() - t0 > REGLAGES.DUREE_MAX_MS);
+      if (fini) finir(resultat(acc, p, false));
+      else { envoyer({ id: id, type: 'partiel', resultat: resultat(acc, p, false) }); setTimeout(lot, 0); }
+    })();
+  };
+}
+</script>
+
+<!-- ================================================================== -->
+<!-- TESTS INTÉGRÉS : lancés par triple-tap sur la mention du bas, ou avec #tests dans l'adresse. -->
+<!-- ================================================================== -->
+<script id="code-tests">
+function _etat(moi, tab, advs) { return { moi: lireCartes(moi), tableau: lireCartes(tab), adversaires: advs }; }
+function _adv(action, cartes) { return { action: action || '?', cartes: cartes ? lireCartes(cartes) : null }; }
+function _pc(x) { return (x * 100).toFixed(2).replace('.', ',') + ' %'; }
+function _somme100(r) { return !!r && r.nG + r.nE + r.nP === r.echantillons && Math.abs(r.gagne + r.egalite + r.perd - 1) < 1e-9; }
+function _sc(s) { var c = lireCartes(s); return evaluer(c, c.length); }
+
+function listeTests() {
+  var T = [];
+  function ajoute(groupe, nom, fn) { T.push({ groupe: groupe, nom: nom, fn: fn }); }
+
+  /* 1. Types de mains : un exemple par type, reconnu et classé */
+  var G1 = 'Types de mains';
+  var exemples = [
+    ['A♠ R♦ 9♣ 7♥ 4♠ 3♦ 2♣', 0, 'Hauteur as'],
+    ['D♠ D♦ 9♣ 7♥ 4♠ 3♦ 2♣', 1, 'Paire de dames'],
+    ['R♠ R♦ 9♣ 9♥ 4♠ 3♦ 2♣', 2, 'Deux paires, rois et neuf'],
+    ['V♠ V♦ V♣ 9♥ 4♠ 3♦ 2♣', 3, 'Brelan de valets'],
+    ['10♠ 9♦ 8♣ 7♥ 6♠ 3♦ 2♣', 4, 'Quinte hauteur dix'],
+    ['A♥ 10♥ 8♥ 5♥ 2♥ R♣ 3♦', 5, 'Couleur hauteur as'],
+    ['D♠ D♦ D♣ 7♥ 7♠ 3♦ 2♣', 6, 'Full aux dames par les sept'],
+    ['A♠ A♦ A♣ A♥ R♠ 3♦ 2♣', 7, "Carré d'as"],
+    ['9♠ 8♠ 7♠ 6♠ 5♠ R♦ 2♣', 8, 'Quinte flush hauteur neuf'],
+    ['A♠ R♠ D♠ V♠ 10♠ 3♦ 2♣', 9, 'Quinte flush royale']
+  ];
+  exemples.forEach(function (ex) {
+    ajoute(G1, NOMS_CATEGORIE[ex[1]] + ' : ' + ex[0], function () {
+      var s = _sc(ex[0]);
+      return { ok: categorie(s) === ex[1] && nomMain(s) === ex[2], detail: 'lu : « ' + nomMain(s) + ' »' };
+    });
+  });
+  ajoute(G1, 'Classement : chaque type bat le précédent', function () {
+    var ok = true;
+    for (var i = 1; i < exemples.length; i++) if (!(_sc(exemples[i][0]) > _sc(exemples[i - 1][0]))) ok = false;
+    return { ok: ok, detail: ok ? '10 types dans l\'ordre' : 'ordre faux' };
+  });
+  ajoute(G1, 'Quinte as-2-3-4-5 reconnue, battue par 2-3-4-5-6', function () {
+    var a = _sc('A♠ 2♦ 3♣ 4♥ 5♠ 9♦ R♣'), b = _sc('6♠ 2♦ 3♣ 4♥ 5♠ 9♦ R♣');
+    return { ok: nomMain(a) === 'Quinte hauteur cinq' && b > a, detail: nomMain(a) + ' < ' + nomMain(b) };
+  });
+  ajoute(G1, 'Couleur préférée à la quinte dans les mêmes 7 cartes', function () {
+    var s = _sc('A♥ 9♥ 8♥ 7♥ 2♥ 6♣ 5♦'); return { ok: categorie(s) === 5, detail: nomMain(s) };
+  });
+  ajoute(G1, 'Quinte flush préférée à une couleur plus haute', function () {
+    var s = _sc('9♠ 8♠ 7♠ 6♠ 5♠ A♠ 2♣'); return { ok: nomMain(s) === 'Quinte flush hauteur neuf', detail: nomMain(s) };
+  });
+  ajoute(G1, 'Kicker : A-R bat A-D sur le même tableau', function () {
+    var t = ' A♣ 9♦ 6♠ 4♥ 2♣', a = _sc('A♠ R♦' + t), b = _sc('A♦ D♣' + t);
+    return { ok: a > b, detail: 'deux mains « ' + nomMain(a) + ' », départagées par la 2e carte' };
+  });
+  ajoute(G1, 'Trois paires : on garde les deux meilleures et le meilleur kicker', function () {
+    var a = _sc('R♠ R♦ 9♣ 9♥ 4♠ 4♦ A♣'), b = _sc('R♠ R♦ 9♣ 9♥ 4♠ 4♦ 3♣');
+    return { ok: nomMain(a) === 'Deux paires, rois et neuf' && a > b, detail: nomMain(a) + ', kicker as > kicker quatre' };
+  });
+  ajoute(G1, 'Deux brelans font un full', function () {
+    var s = _sc('D♠ D♦ D♣ 7♥ 7♠ 7♦ 2♣'); return { ok: nomMain(s) === 'Full aux dames par les sept', detail: nomMain(s) };
+  });
+  ajoute(G1, 'Carré : le kicker départage', function () {
+    return { ok: _sc('A♠ A♦ A♣ A♥ R♠ 3♦ 2♣') > _sc('A♠ A♦ A♣ A♥ D♠ 3♦ 2♣'), detail: 'carré d\'as roi > carré d\'as dame' };
+  });
+  ajoute(G1, 'Égalité quand les deux joueurs jouent le tableau', function () {
+    var t = ' A♠ R♠ D♦ V♣ 10♥';
+    return { ok: _sc('2♣ 3♦' + t) === _sc('4♣ 5♦' + t), detail: 'quinte hauteur as des deux côtés' };
+  });
+
+  /* 2. Gagner + égalité + perdre = 100 % */
+  var G2 = 'Gagner + égalité + perdre = 100 %';
+  var cas = [
+    ['Avant le flop, face-à-face', _etat('A♠ R♠', '', [_adv('?')]), {}],
+    ['Avant le flop, 9 adversaires', _etat('7♦ 2♣', '', [1,2,3,4,5,6,7,8,9].map(function () { return _adv('?'); })), {}],
+    ['Flop, 3 adversaires avec actions', _etat('D♥ V♥', '10♥ 4♠ 2♦', [_adv('mise'), _adv('relance'), _adv('check')]), {}],
+    ['Turn, calcul exact', _etat('A♦ A♣', 'R♠ 7♥ 7♦ 2♣', [_adv('?')]), {}],
+    ['River, calcul exact', _etat('5♠ 5♦', 'A♥ R♣ 9♦ 4♠ 2♥', [_adv('tapis')]), {}],
+    ['Cartes adverses connues', _etat('A♠ A♥', '', [_adv('?', 'R♠ R♥'), _adv('?')]), {}],
+    ['Tous les adversaires couchés', _etat('2♠ 7♥', '', [_adv('couche'), _adv('couche')]), {}]
+  ];
+  cas.forEach(function (c) {
+    ajoute(G2, c[0], function () {
+      var r = calculerChances(c[1], c[2]);
+      return { ok: _somme100(r), detail: _pc(r.gagne) + ' + ' + _pc(r.egalite) + ' + ' + _pc(r.perd) + (r.exact ? ' (exact, ' : ' (simulation, ') + r.echantillons + ' cas)' };
+    });
+  });
+  ajoute(G2, '40 situations tirées au hasard', function () {
+    var actions = ['check', 'mise', 'suivre', 'relance', 'tapis', 'couche', '?'], bons = 0, N = 40;
+    for (var x = 0; x < N; x++) {
+      var j = []; for (var c = 0; c < 52; c++) j.push(c);
+      for (c = 51; c > 0; c--) { var r = alea(c + 1), t = j[c]; j[c] = j[r]; j[r] = t; }
+      var nbT = [0, 3, 4, 5][alea(4)], nbA = 1 + alea(9), advs = [], pos = 2 + nbT;
+      for (var a = 0; a < nbA; a++) {
+        var connu = Math.random() < 0.2;
+        advs.push({ action: actions[alea(actions.length)], cartes: connu ? [j[pos], j[pos + 1]] : null });
+        if (connu) pos += 2;
+      }
+      var res = calculerChances({ moi: [j[0], j[1]], tableau: j.slice(2, 2 + nbT), adversaires: advs }, { tirages: 3000 });
+      if (_somme100(res)) bons++;
+    }
+    return { ok: bons === N, detail: bons + ' / ' + N + ' situations à 100 %' };
+  });
+
+  /* 3. Simulation contre calcul exact (turn et river en face-à-face) */
+  var G3 = 'Simulation contre calcul exact';
+  var comp = [
+    ['Turn : A♠ R♦ sur D♠ V♠ 4♥ 2♣', _etat('A♠ R♦', 'D♠ V♠ 4♥ 2♣', [_adv('?')])],
+    ['Turn : 7♥ 6♥ sur R♥ 2♥ 9♣ 4♦', _etat('7♥ 6♥', 'R♥ 2♥ 9♣ 4♦', [_adv('?')])],
+    ['Turn : adversaire qui relance', _etat('V♣ 10♣', '9♣ 8♦ 2♥ R♠', [_adv('relance')])],
+    ['Turn : cartes adverses connues', _etat('A♥ A♦', '2♣ 7♦ 9♠ 10♠', [_adv('?', 'R♥ R♠')])],
+    ['River : 2♣ 2♦ sur A♠ R♥ 9♦ 5♣ 3♠', _etat('2♣ 2♦', 'A♠ R♥ 9♦ 5♣ 3♠', [_adv('?')])],
+    ['River : adversaire à tapis', _etat('A♣ D♣', 'R♦ 8♠ 5♥ 3♣ 2♦', [_adv('tapis')])]
+  ];
+  comp.forEach(function (c) {
+    ajoute(G3, c[0], function () {
+      var ex = calculerChances(c[1]), si = calculerChances(c[1], { forcerSimulation: true, tirages: REGLAGES.TIRAGES_CIBLE });
+      var e = Math.max(Math.abs(ex.gagne - si.gagne), Math.abs(ex.egalite - si.egalite), Math.abs(ex.perd - si.perd)) * 100;
+      return { ok: ex.exact && e < 1, detail: 'exact ' + _pc(ex.gagne) + ' / simulé ' + _pc(si.gagne) + ' — plus grand écart ' + e.toFixed(2).replace('.', ',') + ' point (' + ex.echantillons + ' cas exacts)' };
+    });
+  });
+
+  /* 4. Lecture des adversaires */
+  var G4 = 'Lecture des adversaires (estimation)';
+  ajoute(G4, '12 % meilleures mains : contient AA, RR, AR assortis ; exclut 7-2 et 3-2', function () {
+    var w = REGLAGES.FOURCHETTE.tapis, f = function (s) { var c = lireCartes(s); return dansFourchette(c[0], c[1], w); };
+    var ok = f('A♠ A♥') && f('R♠ R♥') && f('A♠ R♠') && !f('7♠ 2♥') && !f('3♠ 2♥');
+    return { ok: ok, detail: 'fourchette du tapis : ' + Math.round(w * 100) + ' %' };
+  });
+  ajoute(G4, 'Part réelle des mains gardées pour chaque action', function () {
+    var ok = true, d = [];
+    ['suivre', 'mise', 'relance', 'tapis'].forEach(function (a) {
+      var w = REGLAGES.FOURCHETTE[a], n = 0;
+      for (var x = 0; x < 52; x++) for (var y = x + 1; y < 52; y++) if (dansFourchette(x, y, w)) n++;
+      var f = n / 1326; if (Math.abs(f - w) > 0.03) ok = false;
+      d.push(a + ' ' + Math.round(w * 100) + ' % → ' + (f * 100).toFixed(1).replace('.', ',') + ' %');
+    });
+    return { ok: ok, detail: d.join(' · ') };
+  });
+  ajoute(G4, 'Un tapis adverse fait baisser tes chances (D♠ V♦ avant le flop)', function () {
+    var a = calculerChances(_etat('D♠ V♦', '', [_adv('?')]), { tirages: 30000 });
+    var b = calculerChances(_etat('D♠ V♦', '', [_adv('tapis')]), { tirages: 30000 });
+    return { ok: b.part < a.part - 0.05 && b.estimation && !a.estimation, detail: 'au hasard ' + _pc(a.part) + ' → à tapis ' + _pc(b.part) };
+  });
+  ajoute(G4, '« Check » et « je ne sais pas » ne changent rien', function () {
+    return { ok: largeurPourAction('check') === 1 && largeurPourAction('?') === 1, detail: 'fourchette complète' };
+  });
+  ajoute(G4, '« Se couche » retire l\'adversaire du calcul', function () {
+    var r = calculerChances(_etat('A♠ R♠', 'D♠ 7♥ 2♦ 9♣ 4♥', [_adv('couche'), _adv('?')]));
+    return { ok: r.adversaires === 1 && r.exact, detail: r.adversaires + ' adversaire compté' };
+  });
+
+  /* 5. Cartes qui t'aident */
+  var G5 = 'Cartes qui t\'aident';
+  ajoute(G5, 'Flop 7♥ 6♥ sur R♥ 2♥ 9♣ : les 9 cœurs restants aident', function () {
+    var e = _etat('7♥ 6♥', 'R♥ 2♥ 9♣', [_adv('?')]), r = calculerChances(e), o = cartesQuiAident(e, r.part);
+    var coeurs = o.cartes.filter(function (c) { return (c & 3) === 2; }).length;
+    return { ok: coeurs === 9 && o.repere === Math.min(100, o.nombre * 4), detail: o.nombre + ' cartes (' + o.cartes.map(texteCarte).join(' ') + ') · repère ' + o.nombre + ' × 4 = ' + o.repere + ' % · calcul ' + _pc(r.part) };
+  });
+  ajoute(G5, 'Turn : repère × 2', function () {
+    var e = _etat('7♥ 6♥', 'R♥ 2♥ 9♣ 3♠', [_adv('?')]), r = calculerChances(e), o = cartesQuiAident(e, r.part);
+    return { ok: o.multiplicateur === 2 && o.repere === Math.min(100, o.nombre * 2), detail: o.nombre + ' cartes · repère ' + o.repere + ' % · calcul ' + _pc(r.part) };
+  });
+  ajoute(G5, 'River et avant le flop : pas de compte', function () {
+    return { ok: cartesQuiAident(_etat('7♥ 6♥', 'R♥ 2♥ 9♣ 3♠ 4♦', [_adv('?')]), 0.5) === null && cartesQuiAident(_etat('7♥ 6♥', '', [_adv('?')]), 0.5) === null, detail: 'aucun compte affiché' };
+  });
+
+  /* 6. Conseil */
+  var G6 = 'Conseil';
+  ajoute(G6, 'Exemple : 34 %, payer 25 du pot de 75 → SUIVRE', function () {
+    var c = conseiller({ part: 0.34, joueursEnJeu: 2, pot: 75, aSuivre: 25 });
+    return { ok: c.action === 'SUIVRE' && c.justification === '34 % de chances, tu dois payer 25 % du pot : suivre est rentable.', detail: c.action + ' — ' + c.justification };
+  });
+  ajoute(G6, '20 %, payer 25 % du pot → SE COUCHER', function () {
+    var c = conseiller({ part: 0.20, joueursEnJeu: 2, pot: 75, aSuivre: 25 });
+    return { ok: c.action === 'SE COUCHER', detail: c.action + ' — ' + c.justification };
+  });
+  ajoute(G6, 'Chiffres arrondis égaux : une décimale pour rester lisible', function () {
+    var c = conseiller({ part: 0.2460, joueursEnJeu: 2, pot: 75, aSuivre: 25 });
+    return { ok: c.action === 'SE COUCHER' && c.justification.indexOf('24,6 %') === 0, detail: c.justification };
+  });
+  ajoute(G6, '3 joueurs, 60 %, personne n\'a misé → MISER', function () {
+    var c = conseiller({ part: 0.60, joueursEnJeu: 3 }); return { ok: c.action === 'MISER', detail: c.justification };
+  });
+  ajoute(G6, 'Face-à-face, 40 %, personne n\'a misé → CHECKER', function () {
+    var c = conseiller({ part: 0.40, joueursEnJeu: 2 }); return { ok: c.action === 'CHECKER', detail: c.justification };
+  });
+  ajoute(G6, '4 joueurs, 65 %, une mise en face, pot inconnu → RELANCER', function () {
+    var c = conseiller({ part: 0.65, joueursEnJeu: 4, miseEnFace: true }); return { ok: c.action === 'RELANCER', detail: c.justification };
+  });
+  ajoute(G6, 'Seuil de relance = 2 × part équitable, et au moins 60 % (plan validé)', function () {
+    var ok = true, d = [];
+    for (var j = 2; j <= 10; j++) {
+      var attendu = Math.max(Math.min(2 / j, REGLAGES.PLAFOND_RELANCER), REGLAGES.MIN_RELANCER);
+      if (Math.abs(seuilRelancer(1 / j) - attendu) > 1e-12) ok = false;
+      if (j === 2 || j === 3 || j === 4 || j === 10) d.push(j + ' joueurs : ' + Math.round(seuilRelancer(1 / j) * 100) + ' %');
+    }
+    var c = conseiller({ part: 0.90, joueursEnJeu: 2, pot: 100, aSuivre: 50 });
+    if (REGLAGES.PLAFOND_RELANCER >= 1 && c.action !== 'SUIVRE') ok = false;
+    return { ok: ok, detail: d.join(' · ') + ' — face-à-face à 90 % : ' + c.action };
+  });
+  ajoute(G6, 'Toujours une justification, jamais de jargon anglais', function () {
+    var ok = true, n = 0, jargon = /equity|\bEV\b|range|pot odds|\bouts?\b/i;
+    for (var p = 0; p <= 1.0001; p += 0.05) for (var j = 1; j <= 10; j++) [[null, 0], [100, 0], [100, 30], [null, 20]].forEach(function (x) {
+      [true, false].forEach(function (m) {
+        var c = conseiller({ part: p, joueursEnJeu: j, pot: x[0], aSuivre: x[1], miseEnFace: m }); n++;
+        if (!c.justification || jargon.test(c.justification) || !c.action) ok = false;
+      });
+    });
+    return { ok: ok, detail: n + ' conseils vérifiés' };
+  });
+
+  /* 7. Rapidité */
+  var G7 = 'Rapidité';
+  ajoute(G7, 'Un lot de calcul, 9 adversaires, sous 300 ms', function () {
+    var p = preparer(_etat('A♠ R♠', '', [1,2,3,4,5,6,7,8,9].map(function () { return _adv('relance'); }))), acc = nouvelAcc(), t = Date.now();
+    simuler(p, REGLAGES.TAILLE_LOT, acc); var d = Date.now() - t;
+    return { ok: d < 300, detail: REGLAGES.TAILLE_LOT + ' tirages en ' + d + ' ms' };
+  });
+  ajoute(G7, 'Calcul exact du turn sous 300 ms', function () {
+    var t = Date.now(), r = calculerChances(_etat('A♠ R♦', 'D♠ V♠ 4♥ 2♣', [_adv('?')])), d = Date.now() - t;
+    return { ok: d < 300 && r.exact, detail: r.echantillons + ' cas en ' + d + ' ms' };
+  });
+  ajoute(G7, 'Calcul complet avant le flop, face-à-face (dans le Worker)', function () {
+    var t = Date.now(); calculerChances(_etat('A♠ R♦', '', [_adv('?')])); var d = Date.now() - t;
+    return { ok: true, detail: REGLAGES.TIRAGES_CIBLE + ' tirages en ' + d + ' ms (information)' };
+  });
+  return T;
+}
+function executerUnTest(t) {
+  var d0 = Date.now(), r;
+  try { r = t.fn(); } catch (err) { r = { ok: false, detail: 'erreur : ' + err.message }; }
+  return { groupe: t.groupe, nom: t.nom, ok: !!r.ok, detail: r.detail || '', ms: Date.now() - d0 };
+}
+</script>
+
+<!-- ================================================================== -->
+<!-- TABLE 3D (étape 4) : décor seulement. Ne calcule rien, ne bloque jamais le calcul.
+     Rendu à la demande (uniquement pendant une animation ou un geste). -->
+<!-- ================================================================== -->
+<script id="table3d">
+var Table3D = (function () {
+  var URL_THREE = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  var RX = 3.55, RZ = 2.25, CIBLE_Z = 0.3, ELEV = 58 * Math.PI / 180, LC = 1, HC = 1.4;
+  var POS = { moi0: [-0.58, 1.3], moi1: [0.58, 1.3], tab0: [-2.3, -0.5], tab1: [-1.15, -0.5], tab2: [0, -0.5], tab3: [1.15, -0.5], tab4: [2.3, -0.5] };
+  var CLES = ['moi0', 'moi1', 'tab0', 'tab1', 'tab2', 'tab3', 'tab4'];
+  var $ = function (id) { return document.getElementById(id); };
+
+  var zone = $('zoneCartes'), scene3d = $('scene3d'), bouton = $('basculeLeger'), info = $('info3d');
+  var leger = false, dispo = false, pret = false;
+  var dernier = null, rappelRetirer = null, anime = true;
+  var T, renderer, scene, camera, raycaster, geoCarte, geoOmbre, texOmbre, texContour, texContourOr;
+  var cartes = {}, contours = {}, texCartes = {};
+  var camDist = 10, elev = ELEV, azimut = 0;
+  var enCours = [], boucle = false, mesure = null, lents = 0, image = false;
+
+  /* ---------- Préférence et bascule ---------- */
+  function lirePref() { try { return localStorage.getItem('brelan-leger'); } catch (e) { return null; } }
+  function ecrirePref(v) { try { localStorage.setItem('brelan-leger', v ? '1' : '0'); } catch (e) {} }
+  function afficherMode() {
+    var en3d = dispo && !leger;
+    zone.classList.toggle('mode3d', en3d);
+    bouton.setAttribute('aria-pressed', leger || !dispo ? 'true' : 'false');
+    bouton.disabled = !dispo;
+    if (en3d && pret) { ajuster(); synchroniser(dernier, false); }
+  }
+  function definirLeger(v, auto) {
+    leger = v;
+    if (!auto) ecrirePref(v);
+    afficherMode();
+    if (auto) message('Animation trop lente : mode léger activé.');
+    else if (!v && pret) intro();
+  }
+  function indispo(txt) { dispo = false; leger = true; afficherMode(); message(txt); }
+  var minuterieMsg = null;
+  function message(txt) {
+    info.textContent = txt; info.style.opacity = 1;
+    clearTimeout(minuterieMsg); minuterieMsg = setTimeout(function () { info.style.opacity = 0; }, 3500);
+  }
+  bouton.addEventListener('click', function () { if (dispo) definirLeger(!leger, false); });
+
+  /* ---------- Textures dessinées en code ---------- */
+  function toile(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  function texture(cv, srgb) { var t = new T.CanvasTexture(cv); if (srgb) t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t; }
+  function rectArrondi(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h); g.lineTo(x + r, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - r); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
+  }
+  // Symboles de couleur tracés à la main (pas de police, pas d'émoji) — centrés en (0,0), hauteur 1.
+  function symbole(g, s, x, y, t) {
+    g.save(); g.translate(x, y); g.scale(t, t); g.beginPath();
+    if (s === 1) { g.moveTo(0, -0.5); g.lineTo(0.38, 0); g.lineTo(0, 0.5); g.lineTo(-0.38, 0); g.closePath(); }
+    else if (s === 2) {
+      g.moveTo(0, 0.48); g.bezierCurveTo(-0.62, 0.05, -0.55, -0.5, -0.27, -0.5); g.bezierCurveTo(-0.1, -0.5, 0, -0.38, 0, -0.25);
+      g.bezierCurveTo(0, -0.38, 0.1, -0.5, 0.27, -0.5); g.bezierCurveTo(0.55, -0.5, 0.62, 0.05, 0, 0.48); g.closePath();
+    } else if (s === 3) {
+      g.moveTo(0, -0.5); g.bezierCurveTo(-0.62, -0.08, -0.55, 0.36, -0.27, 0.36); g.bezierCurveTo(-0.1, 0.36, 0, 0.26, 0, 0.16);
+      g.bezierCurveTo(0, 0.26, 0.1, 0.36, 0.27, 0.36); g.bezierCurveTo(0.55, 0.36, 0.62, -0.08, 0, -0.5); g.closePath();
+      g.moveTo(0, 0.1); g.lineTo(0.17, 0.5); g.lineTo(-0.17, 0.5); g.closePath();
+    } else {
+      g.arc(0, -0.24, 0.21, 0, Math.PI * 2); g.moveTo(-0.03, 0.08); g.arc(-0.25, 0.08, 0.21, 0, Math.PI * 2);
+      g.moveTo(0.46, 0.08); g.arc(0.25, 0.08, 0.21, 0, Math.PI * 2);
+      g.moveTo(0, -0.05); g.lineTo(0.16, 0.5); g.lineTo(-0.16, 0.5); g.closePath();
+    }
+    g.fill(); g.restore();
+  }
+  function texCarte(c) {
+    if (texCartes[c]) return texCartes[c];
+    var W = 256, H = 358, cv = toile(W, H), g = cv.getContext('2d'), v = c >> 2, s = c & 3;
+    var coul = (s === 1 || s === 2) ? '#d0211c' : '#15171a', txt = NOMS_VALEUR[v];
+    rectArrondi(g, 3, 3, W - 6, H - 6, 26); g.fillStyle = '#fbfaf6'; g.fill();
+    g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.22)'; g.stroke();
+    if (v >= 9 && v <= 11) { rectArrondi(g, 16, 16, W - 32, H - 32, 16); g.lineWidth = 7; g.strokeStyle = '#c9a24a'; g.stroke(); }
+    g.fillStyle = coul; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    // Grand index lisible même quand la carte est petite à l'écran.
+    g.font = '800 ' + (txt === '10' ? 132 : 158) + 'px -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif';
+    g.fillText(txt, W / 2, 170);
+    symbole(g, s, W / 2, 262, 132);
+    // Petits index de coin.
+    g.font = '800 40px -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif'; g.textAlign = 'left';
+    g.fillText(txt, 20, 52); symbole(g, s, 33, 78, 30);
+    g.save(); g.translate(W, H); g.rotate(Math.PI); g.fillText(txt, 20, 52); symbole(g, s, 33, 78, 30); g.restore();
+    return (texCartes[c] = texture(cv, true));
+  }
+  function texFeutre() {
+    var N = 512, cv = toile(N, N), g = cv.getContext('2d');
+    var gr = g.createRadialGradient(N / 2, N / 2, N * 0.05, N / 2, N / 2, N * 0.55);
+    gr.addColorStop(0, '#24804a'); gr.addColorStop(0.7, '#17633a'); gr.addColorStop(1, '#0d4428');
+    g.fillStyle = gr; g.fillRect(0, 0, N, N);
+    var img = g.getImageData(0, 0, N, N), d = img.data;          // grain du feutre
+    for (var i = 0; i < d.length; i += 4) { var n = (Math.random() - 0.5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+    g.putImageData(img, 0, 0);
+    g.strokeStyle = 'rgba(255,240,200,.10)'; g.lineWidth = 3;   // fine ligne décorative
+    g.beginPath(); g.ellipse(N / 2, N / 2, N * 0.43, N * 0.41, 0, 0, Math.PI * 2); g.stroke();
+    return texture(cv, true);
+  }
+  function texBois() {
+    var cv = toile(1024, 64), g = cv.getContext('2d');
+    g.fillStyle = '#5a1a0e'; g.fillRect(0, 0, 1024, 64);
+    for (var i = 0; i < 70; i++) {
+      var y = Math.random() * 64, a = Math.random() * 0.25;
+      g.strokeStyle = (Math.random() < 0.5 ? 'rgba(25,5,2,' : 'rgba(140,55,30,') + a + ')';
+      g.lineWidth = 1 + Math.random() * 3; g.beginPath(); g.moveTo(0, y);
+      for (var x = 0; x <= 1024; x += 64) g.lineTo(x, y + Math.sin(x / 90 + i) * 3);
+      g.stroke();
+    }
+    var t = texture(cv, true); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(6, 1); return t;
+  }
+  function texOmbreCarte() {
+    var cv = toile(128, 160), g = cv.getContext('2d');
+    g.filter = 'blur(10px)'; g.fillStyle = 'rgba(0,0,0,.55)'; rectArrondi(g, 24, 24, 80, 112, 10); g.fill();
+    return texture(cv, false);
+  }
+  function texCase(couleur, epaisseur) {
+    var cv = toile(128, 180), g = cv.getContext('2d');
+    g.setLineDash([12, 9]); g.lineWidth = epaisseur; g.strokeStyle = couleur;
+    rectArrondi(g, 6, 6, 116, 168, 14); g.stroke();
+    return texture(cv, false);
+  }
+
+  /* ---------- Construction de la scène ---------- */
+  function construire() {
+    T = window.THREE;
+    renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = T.sRGBEncoding;
+    renderer.setClearColor(0x000000, 0);
+    scene3d.appendChild(renderer.domElement);
+    renderer.domElement.addEventListener('webglcontextlost', function (e) { e.preventDefault(); indispo('3D interrompue : mode léger.'); });
+    scene = new T.Scene();
+    camera = new T.PerspectiveCamera(30, 2, 0.1, 100);
+    raycaster = new T.Raycaster();
+
+    // Éclairage doux venant du dessus.
+    scene.add(new T.HemisphereLight(0xfff3dd, 0x0a1a10, 0.55));
+    var spot = new T.SpotLight(0xfff0d0, 1.25, 30, 0.8, 0.9, 1.2);
+    spot.position.set(0, 9, 1.2); spot.target.position.set(0, 0, 0.2); scene.add(spot); scene.add(spot.target);
+    var lat = new T.DirectionalLight(0xffffff, 0.25); lat.position.set(-3, 6, 5); scene.add(lat);
+
+    // Tapis ovale.
+    var forme = new T.Shape(); forme.absellipse(0, 0, RX, RZ, 0, Math.PI * 2, false, 0);
+    var feutre = texFeutre(); feutre.repeat.set(1 / (2 * RX), 1 / (2 * RZ)); feutre.offset.set(0.5, 0.5);
+    var tapis = new T.Mesh(new T.ShapeGeometry(forme, 96), new T.MeshStandardMaterial({ map: feutre, roughness: 1, metalness: 0 }));
+    tapis.rotation.x = -Math.PI / 2; scene.add(tapis);
+
+    // Bord en acajou verni.
+    var pts = [];
+    for (var i = 0; i < 160; i++) { var a = i / 160 * Math.PI * 2; pts.push(new T.Vector3(Math.cos(a) * (RX + 0.2), 0.1, Math.sin(a) * (RZ + 0.2))); }
+    var bord = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts, true), 240, 0.27, 20, true),
+      new T.MeshPhysicalMaterial({ map: texBois(), color: 0xffffff, roughness: 0.32, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08 }));
+    scene.add(bord);
+    var socle = new T.Mesh(new T.ShapeGeometry(forme, 96), new T.MeshStandardMaterial({ color: 0x1f0905, roughness: 0.8 }));
+    socle.rotation.x = -Math.PI / 2; socle.scale.set(1.13, 1.17, 1); socle.position.y = -0.18; scene.add(socle);
+
+    // Cases et cartes.
+    geoCarte = new T.PlaneGeometry(LC, HC);
+    geoOmbre = new T.PlaneGeometry(LC * 1.35, HC * 1.3);
+    texOmbre = texOmbreCarte();
+    texContour = texCase('rgba(255,255,255,.22)', 4);
+    texContourOr = texCase('#ffd86b', 7);
+    CLES.forEach(function (k) {
+      var m = new T.Mesh(new T.PlaneGeometry(LC * 1.06, HC * 1.06), new T.MeshBasicMaterial({ map: texContour, transparent: true, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.set(POS[k][0], 0.004, POS[k][1]);
+      scene.add(m); contours[k] = m;
+    });
+
+    // Geste : glisser horizontalement fait pivoter la vue (angle limité), toucher une carte la retire.
+    var el = renderer.domElement, x0 = null, y0 = 0, az0 = 0, bouge = false;
+    el.addEventListener('pointerdown', function (e) { x0 = e.clientX; y0 = e.clientY; az0 = azimut; bouge = false; });
+    el.addEventListener('pointermove', function (e) {
+      if (x0 === null) return;
+      var dx = e.clientX - x0;
+      if (!bouge && Math.abs(dx) > 6) bouge = true;
+      if (bouge) { azimut = Math.max(-18, Math.min(18, az0 + dx * 0.22)); placerCamera(); demanderImage(); }
+    });
+    function fin(e, annule) {
+      if (x0 === null) return;
+      if (!bouge && !annule && Math.abs(e.clientY - y0) < 8) toucher(e);
+      x0 = null;
+      if (bouge) { var depart = azimut; anim(450, function (k) { azimut = depart * (1 - lisse(k)); placerCamera(); }); }
+    }
+    el.addEventListener('pointerup', function (e) { fin(e, false); });
+    el.addEventListener('pointercancel', function (e) { fin(e, true); });
+
+    if (window.ResizeObserver) new ResizeObserver(function () { if (zone.classList.contains('mode3d')) { ajuster(); demanderImage(); } }).observe(scene3d);
+    pret = true; dispo = true;
+    afficherMode();
+    if (!leger) intro();
+  }
+  function toucher(e) {
+    var r = renderer.domElement.getBoundingClientRect();
+    var ndc = new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    var faces = []; CLES.forEach(function (k) { if (cartes[k]) faces.push(cartes[k].userData.face); });
+    var hit = raycaster.intersectObjects(faces)[0];
+    if (!hit || !rappelRetirer) return;
+    var k = hit.object.userData.cle;
+    rappelRetirer({ zone: k.slice(0, 3), i: +k[3] });
+  }
+  function ajuster() {
+    var w = scene3d.clientWidth, h = scene3d.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    var vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+    var dLarg = (RX + 0.55) / Math.tan(hf / 2), dHaut = (RZ + 0.6) * Math.sin(ELEV) / Math.tan(vf / 2);
+    camDist = Math.max(dLarg, dHaut) * 1.02;
+    camera.updateProjectionMatrix();
+    placerCamera();
+  }
+  function placerCamera() {
+    var az = azimut * Math.PI / 180, c = Math.cos(elev);
+    camera.position.set(Math.sin(az) * c * camDist, Math.sin(elev) * camDist, CIBLE_Z + Math.cos(az) * c * camDist);
+    camera.lookAt(0, 0, CIBLE_Z);
+  }
+
+  /* ---------- Animation à la demande ---------- */
+  function lisse(k) { return 1 - Math.pow(1 - k, 3); }
+  function anim(duree, f, fin) { enCours.push({ t0: performance.now(), d: duree, f: f, fin: fin }); demarrer(); }
+  function demarrer() { if (boucle) return; boucle = true; mesure = { t0: 0, t1: 0, n: 0 }; requestAnimationFrame(cadre); }
+  function demanderImage() { if (boucle || image) return; image = true; requestAnimationFrame(function () { image = false; if (!boucle) renderer.render(scene, camera); }); }
+  function cadre(t) {
+    var reste = [];
+    enCours.forEach(function (a) {
+      var k = Math.max(0, Math.min(1, (t - a.t0) / a.d)); a.f(k);
+      if (k < 1) reste.push(a); else if (a.fin) a.fin();
+    });
+    enCours = reste;
+    renderer.render(scene, camera);
+    if (mesure.n === 0) mesure.t0 = t;      // la 1re image (compilation) n'est pas comptée
+    mesure.t1 = t; mesure.n++;
+    if (enCours.length) requestAnimationFrame(cadre);
+    else { boucle = false; verifierFluidite(); }
+  }
+  // Mode léger automatique si l'animation tombe sous 30 images par seconde (deux fois de suite).
+  function verifierFluidite() {
+    if (document.visibilityState !== 'visible' || leger) return;
+    var d = mesure.t1 - mesure.t0;
+    if (d < 250 || mesure.n < 3) return;
+    var ips = (mesure.n - 1) * 1000 / d;
+    // L'intro compte comme une animation ordinaire : un chargement chargé ne suffit pas à basculer.
+    if (ips < 30) { lents += 1; if (lents >= 2) definirLeger(true, true); }
+    else lents = 0;
+  }
+  function intro() {
+    ajuster(); elev = 72 * Math.PI / 180;
+    anim(900, function (k) { elev = (72 - (72 - 58) * lisse(k)) * Math.PI / 180; placerCamera(); });
+    mesure.intro = true;
+  }
+
+  /* ---------- Cartes ---------- */
+  function creerCarte(c, k) {
+    var g = new T.Group();
+    var ombre = new T.Mesh(geoOmbre, new T.MeshBasicMaterial({ map: texOmbre, transparent: true, depthWrite: false }));
+    ombre.rotation.x = -Math.PI / 2; ombre.position.set(0.05, -0.025, 0.08);
+    var face = new T.Mesh(geoCarte, new T.MeshStandardMaterial({ map: texCarte(c), transparent: true, roughness: 0.55, metalness: 0 }));
+    face.rotation.x = -Math.PI / 2; face.userData.cle = k;
+    g.add(ombre); g.add(face);
+    g.userData = { c: c, face: face, ombre: ombre };
+    return g;
+  }
+  function entrer(g, pos, animer) {
+    scene.add(g);
+    var x1 = pos[0], z1 = pos[1], y1 = 0.03;
+    if (!animer) { g.position.set(x1, y1, z1); return; }
+    var x0 = 0, z0 = -RZ - 1.4, r0 = (Math.random() - 0.5) * 1.2;
+    g.position.set(x0, 0.6, z0); g.rotation.y = r0;
+    anim(430, function (k) {
+      var e = lisse(k);
+      g.position.set(x0 + (x1 - x0) * e, y1 + Math.sin(Math.PI * k) * 0.45 * (1 - k) + 0.57 * (1 - e), z0 + (z1 - z0) * e);
+      g.rotation.y = r0 * (1 - e);
+    });
+  }
+  function sortir(g, animer) {
+    function jeter() { scene.remove(g); g.userData.face.material.dispose(); g.userData.ombre.material.dispose(); }
+    if (!animer) { jeter(); return; }
+    var y0 = g.position.y, z0 = g.position.z;
+    g.userData.face.material.opacity = 1;
+    anim(220, function (k) {
+      g.position.y = y0 + 0.5 * k; g.position.z = z0 - 0.6 * k;
+      g.userData.face.material.opacity = 1 - k; g.userData.ombre.material.opacity = 1 - k;
+    }, jeter);
+  }
+  function synchroniser(etat, animer) {
+    if (!pret || !etat) return;
+    CLES.forEach(function (k) {
+      var c = k[0] === 'm' ? etat.moi[+k[3]] : etat.tab[+k[3]];
+      var actuelle = cartes[k];
+      if (actuelle && actuelle.userData.c === c) return;
+      if (actuelle) { sortir(actuelle, animer); delete cartes[k]; }
+      if (c != null) { var g = creerCarte(c, k); cartes[k] = g; entrer(g, POS[k], animer); }
+    });
+    var p = etat.prochaine;
+    CLES.forEach(function (k) {
+      var vise = !!p && p.zone + p.i === k;
+      contours[k].visible = !cartes[k];
+      contours[k].material.map = vise ? texContourOr : texContour;
+    });
+    if (!animer) demanderImage();
+  }
+
+  /* ---------- Démarrage : Three.js chargé à part, sans jamais retarder la page ni le calcul ---------- */
+  leger = lirePref() === '1';
+  afficherMode();
+  (function charger() {
+    var essai = toile(1, 1);
+    if (!(essai.getContext('webgl') || essai.getContext('experimental-webgl'))) { indispo('3D non prise en charge : mode léger.'); return; }
+    var s = document.createElement('script');
+    s.src = URL_THREE; s.async = true; s.crossOrigin = 'anonymous';
+    s.onload = function () { try { construire(); } catch (e) { indispo('3D indisponible : mode léger.'); } };
+    s.onerror = function () { indispo('3D non chargée (pas de connexion ?) : mode léger.'); };
+    document.head.appendChild(s);
+  })();
+
+  return {
+    // etat = { moi, tab, prochaine } ; retirer(case) ; modeCalcul = 'worker' ou 'secours'
+    maj: function (etat, retirer, modeCalcul) {
+      dernier = etat; rappelRetirer = retirer;
+      anime = modeCalcul === 'worker';        // calcul dans la page (secours) : pas d'animation, le calcul passe d'abord
+      if (dispo && !leger) synchroniser(etat, anime && document.visibilityState === 'visible');
+    },
+    etat: function () { return { leger: leger, dispo: dispo, pret: pret, images: mesure }; }
+  };
+})();
+</script>
+
+<!-- ================================================================== -->
+<!-- INTERFACE 2D (étape 3) -->
+<!-- ================================================================== -->
+<script id="page">
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  /* ---------- Canal vers le moteur : Web Worker, sinon fil principal par lots ---------- */
+  var ecouteur = null, mode = 'worker', calc;
+  function sourceWorker() {
+    // Les navigateurs ralentissent setTimeout (jusqu'à ~1 s) quand la page est en arrière-plan.
+    // Dans le Worker, une pause de 0 ms passe donc par un canal de messages, jamais ralenti.
+    var accelerateur = '(function () { var ch = new MessageChannel(), file = [], st = setTimeout;' +
+      ' ch.port1.onmessage = function () { var f = file.shift(); if (f) f(); };' +
+      ' self.setTimeout = function (f, d) { if (!d) { file.push(f); ch.port2.postMessage(0); return 0; } return st(f, d); }; })();\n';
+    return accelerateur + $('moteur').textContent + '\n' + $('code-tests').textContent +
+      '\nvar __c = creerCalculateur(function (x) { postMessage(x); });\nonmessage = function (e) { __c(e.data); };';
+  }
+  function creerCanal() {
+    try {
+      var w = new Worker(URL.createObjectURL(new Blob([sourceWorker()], { type: 'text/javascript' })));
+      w.onmessage = function (e) { ecouteur && ecouteur(e.data); };
+      w.onerror = function () { basculer(); };
+      return function (m) { w.postMessage(m); };
+    } catch (e) { return secours(); }
+  }
+  function secours() {
+    mode = 'secours';
+    var c = creerCalculateur(function (x) { setTimeout(function () { ecouteur && ecouteur(x); }, 0); });
+    return function (m) { c(m); };
+  }
+  function basculer() { if (mode !== 'worker') return; calc = secours(); lancerCalcul(); }
+  calc = creerCanal();
+
+  /* ---------- État de la main ---------- */
+  var ACTIONS = [['check', 'Check'], ['mise', 'Mise'], ['suivre', 'Suivre'], ['relance', 'Relance'], ['tapis', 'Tapis'], ['couche', 'Couché'], ['?', '?']];
+  var PARLE_DE_MISE = { mise: 1, suivre: 1, relance: 1, tapis: 1 };
+  var PASSE_TEXTE = { mise: 'a misé avant', suivre: 'a suivi avant', relance: 'a relancé avant', tapis: 'a fait tapis' };
+  function nouvelAdv() { return { action: '?', passe: null, cartes: [null, null] }; }
+  var S = { moi: [null, null], tab: [null, null, null, null, null], adv: [nouvelAdv()], cible: null, couleur: null, pile: [] };
+  var R = { id: 0, res: null, resId: -1, fini: false, outs: null, outsId: -1 };
+
+  function plusForte(x, y) { if (!x) return y; if (!y) return x; return largeurPourAction(x) <= largeurPourAction(y) ? x : y; }
+  function actionMoteur(a) { return a.action === 'couche' ? 'couche' : (plusForte(a.passe, a.action) || '?'); }
+  function utilisees() {
+    var u = {};
+    S.moi.concat(S.tab).forEach(function (c) { if (c != null) u[c] = 1; });
+    S.adv.forEach(function (a) { a.cartes.forEach(function (c) { if (c != null) u[c] = 1; }); });
+    return u;
+  }
+  function prochaineCase() {
+    if (S.cible !== null) { var j = S.adv[S.cible].cartes.indexOf(null); return j < 0 ? null : { zone: 'adv', i: S.cible, j: j }; }
+    var i = S.moi.indexOf(null); if (i >= 0) return { zone: 'moi', i: i };
+    i = S.tab.indexOf(null); if (i >= 0) return { zone: 'tab', i: i };
+    return null;
+  }
+  function ecrireCase(p, c) { if (p.zone === 'moi') S.moi[p.i] = c; else if (p.zone === 'tab') S.tab[p.i] = c; else S.adv[p.i].cartes[p.j] = c; }
+  function memeCase(a, b) { return a.zone === b.zone && a.i === b.i && (a.zone !== 'adv' || a.j === b.j); }
+  function nbTableau() { return S.tab.filter(function (c) { return c != null; }).length; }
+  function photo() { return { suivre: $('suivre').value, adv: S.adv.map(function (a) { return { action: a.action, passe: a.passe }; }) }; }
+
+  function placer(c) {
+    var p = prochaineCase(); if (!p) return;
+    var avant = nbTableau();
+    ecrireCase(p, c); S.couleur = null;
+    if (p.zone === 'adv' && S.adv[p.i].cartes.indexOf(null) < 0) S.cible = null;
+    var apres = nbTableau();
+    if (p.zone === 'tab' && apres > avant && (apres === 3 || apres === 4 || apres === 5)) { p.photo = photo(); nouvelleRue(); }
+    S.pile.push(p);
+    maj(true);
+  }
+  // Nouvelle carte du tableau = nouveau tour d'enchères : la mise à suivre repart de zéro,
+  // les actions passent en « avant » (elles continuent de resserrer sa main).
+  function nouvelleRue() {
+    $('suivre').value = '';
+    S.adv.forEach(function (a) {
+      if (a.action === 'couche') return;
+      if (PARLE_DE_MISE[a.action]) a.passe = plusForte(a.passe, a.action);
+      a.action = '?';
+    });
+  }
+  function retirer(p) {
+    ecrireCase(p, null);
+    S.pile = S.pile.filter(function (q) { return !memeCase(q, p); });
+    maj(true);
+  }
+  function annuler() {
+    var p = S.pile.pop(); if (!p) return;
+    ecrireCase(p, null);
+    if (p.photo) {
+      $('suivre').value = p.photo.suivre;
+      p.photo.adv.forEach(function (x, i) { if (S.adv[i]) { S.adv[i].action = x.action; S.adv[i].passe = x.passe; } });
+    }
+    S.couleur = null;
+    maj(true);
+  }
+  function nouvelleMain() {
+    S.moi = [null, null]; S.tab = [null, null, null, null, null];
+    S.adv = S.adv.map(nouvelAdv); S.cible = null; S.couleur = null; S.pile = [];
+    $('pot').value = ''; $('suivre').value = '';
+    maj(true);
+  }
+  function changerNbAdv(d) {
+    var n = Math.max(1, Math.min(9, S.adv.length + d));
+    while (S.adv.length < n) S.adv.push(nouvelAdv());
+    while (S.adv.length > n) {
+      var k = S.adv.length - 1;
+      S.pile = S.pile.filter(function (q) { return !(q.zone === 'adv' && q.i === k); });
+      if (S.cible === k) S.cible = null;
+      S.adv.pop();
+    }
+    maj(true);
+  }
+
+  /* ---------- Affichage des cartes ---------- */
+  function vueCarte(c, surTouche) {
+    var b = el('button', 'carte' + ((c & 3) === 1 || (c & 3) === 2 ? ' rouge' : ''));
+    b.appendChild(el('span', 'v', NOMS_VALEUR[c >> 2]));
+    b.appendChild(el('span', 's', SYMBOLES_COULEUR[c & 3]));
+    b.setAttribute('aria-label', texteCarte(c) + ', toucher pour retirer');
+    b.addEventListener('click', surTouche);
+    return b;
+  }
+  function vueCase(prochaine) { var d = el('div', 'case' + (prochaine ? ' prochaine' : '')); return d; }
+  function rendreZone(conteneur, cartes, zone, idx) {
+    conteneur.innerHTML = '';
+    var p = prochaineCase();
+    cartes.forEach(function (c, k) {
+      var ici = zone === 'adv' ? { zone: 'adv', i: idx, j: k } : { zone: zone, i: k };
+      if (c != null) conteneur.appendChild(vueCarte(c, function () { retirer(ici); }));
+      else conteneur.appendChild(vueCase(p && memeCase(p, ici)));
+    });
+  }
+  function rendreCartes() {
+    rendreZone($('z-moi'), S.moi, 'moi');
+    rendreZone($('z-tab'), S.tab, 'tab');
+    if (window.Table3D) Table3D.maj({ moi: S.moi.slice(), tab: S.tab.slice(), prochaine: prochaineCase() }, retirer, mode); // étape 4
+  }
+  function rendreAdversaires() {
+    $('nbAdv').textContent = S.adv.length;
+    $('moins').disabled = S.adv.length <= 1; $('plus').disabled = S.adv.length >= 9;
+    var liste = $('listeAdv'); liste.innerHTML = '';
+    S.adv.forEach(function (a, i) {
+      var bloc = el('div', 'adv' + (a.action === 'couche' ? ' couche' : ''));
+      var tete = el('div', 'tete');
+      tete.appendChild(el('span', 'nom', 'Adversaire ' + (i + 1)));
+      if (a.passe && a.action !== 'couche') tete.appendChild(el('span', 'avant', PASSE_TEXTE[a.passe]));
+      var droite = el('div', 'droite');
+      var connues = a.cartes.some(function (c) { return c != null; });
+      if (connues || S.cible === i) { var z = el('div', 'cases mini'); rendreZone(z, a.cartes, 'adv', i); droite.appendChild(z); }
+      var ses = el('button', 'ses' + (S.cible === i ? ' actif' : ''), S.cible === i ? 'Terminé' : 'Ses cartes');
+      ses.addEventListener('click', function () { S.cible = S.cible === i ? null : i; S.couleur = null; maj(false); });
+      droite.appendChild(ses);
+      tete.appendChild(droite);
+      bloc.appendChild(tete);
+      var rang = el('div', 'actions');
+      ACTIONS.forEach(function (x) {
+        var b = el('button', (a.action === x[0] ? 'actif' : '') + (x[0] === 'couche' ? ' a-couche' : ''), x[1]);
+        b.setAttribute('aria-pressed', a.action === x[0] ? 'true' : 'false');
+        b.addEventListener('click', function () { a.action = (a.action === x[0]) ? '?' : x[0]; maj(true); });
+        rang.appendChild(b);
+      });
+      bloc.appendChild(rang);
+      liste.appendChild(bloc);
+    });
+  }
+
+  /* ---------- Clavier : couleur puis valeur ---------- */
+  var ORDRE_COULEURS = [3, 2, 1, 0]; // ♠ ♥ ♦ ♣
+  var NOMS_COULEUR = ['trèfle', 'carreau', 'cœur', 'pique'];
+  function rendreClavier() {
+    var u = utilisees(), p = prochaineCase();
+    var zc = $('couleurs'); zc.innerHTML = '';
+    ORDRE_COULEURS.forEach(function (s) {
+      var libres = 0; for (var v = 0; v < 13; v++) if (!u[v * 4 + s]) libres++;
+      var b = el('button', (s === 1 || s === 2 ? 'rouge' : '') + (S.couleur === s ? ' choisie' : ''), SYMBOLES_COULEUR[s]);
+      b.setAttribute('aria-label', NOMS_COULEUR[s]);
+      b.disabled = !p || !libres;
+      b.addEventListener('click', function () { S.couleur = (S.couleur === s) ? null : s; rendreClavier(); });
+      zc.appendChild(b);
+    });
+    var zv = $('valeurs'); zv.innerHTML = '';
+    zv.className = 'valeurs' + (S.couleur === null ? ' sans-couleur' : '');
+    for (var v = 0; v < 13; v++) (function (v) {
+      var b = el('button', 'v', NOMS_VALEUR[v]);
+      b.disabled = !p || (S.couleur !== null && !!u[v * 4 + S.couleur]);
+      b.addEventListener('click', function () {
+        if (S.couleur === null) { zc.classList.remove('secoue'); void zc.offsetWidth; zc.classList.add('secoue'); return; }
+        placer(v * 4 + S.couleur);
+      });
+      zv.appendChild(b);
+    })(v);
+    var an = el('button', '', 'Annuler'); an.id = 'annuler'; an.disabled = !S.pile.length;
+    an.addEventListener('click', annuler);
+    zv.appendChild(an);
+
+    var ind = $('indic'); ind.innerHTML = '';
+    if (S.cible !== null) {
+      var t = el('button', '', 'Cartes de l\'adversaire ' + (S.cible + 1) + ' · terminé');
+      t.addEventListener('click', function () { S.cible = null; S.couleur = null; maj(false); });
+      ind.appendChild(t);
+    } else if (!p) ind.textContent = 'Toutes les cartes sont posées';
+    else {
+      var quoi = p.zone === 'moi' ? (p.i === 0 ? 'ta 1re carte' : 'ta 2e carte') : (p.i < 3 ? 'le flop' : p.i === 3 ? 'le turn' : 'la river');
+      ind.textContent = (S.couleur === null ? 'Couleur, puis valeur · ' : 'Valeur · ') + quoi;
+    }
+  }
+
+  /* ---------- Calcul ---------- */
+  function etatMoteur() {
+    return {
+      moi: S.moi.slice(),
+      tableau: S.tab.filter(function (c) { return c != null; }),
+      adversaires: S.adv.map(function (a) {
+        var ok = a.cartes[0] != null && a.cartes[1] != null;
+        return { action: actionMoteur(a), cartes: ok ? a.cartes.slice() : null };
+      })
+    };
+  }
+  function lancerCalcul() {
+    if (S.moi[0] == null || S.moi[1] == null) { R.res = null; R.outs = null; R.id++; rendreResultat(); return; }
+    R.id++; R.fini = false;
+    calc({ id: R.id, etat: etatMoteur(), reglages: reglagesPerso() });
+    rendreResultat();
+  }
+  ecouteur = function (m) {
+    if (m.type === 'test' || m.type === 'testsFini') return afficherTest(m);
+    if (m.id !== R.id) return;
+    if (m.type === 'partiel' || m.type === 'final') { R.res = m.resultat; R.resId = m.id; R.fini = m.type === 'final'; }
+    if (m.type === 'outs') { R.outs = m.outs; R.outsId = m.id; }
+    rendreResultat();
+  };
+
+  /* ---------- Résultat ---------- */
+  function nombre(id) { var v = $(id).value.replace(/\s/g, '').replace(',', '.'); if (v === '') return null; var n = Number(v); return isFinite(n) && n >= 0 ? n : null; }
+  function dixiemes(fr) {           // arrondi au dixième, total exactement 100,0
+    var m = fr.map(function (x) { return x * 1000; }), b = m.map(Math.floor), reste = 1000 - b.reduce(function (a, x) { return a + x; }, 0);
+    m.map(function (x, i) { return [x - b[i], i]; }).sort(function (a, z) { return z[0] - a[0]; }).slice(0, reste).forEach(function (x) { b[x[1]]++; });
+    return b.map(function (x) { return (x / 10).toFixed(1).replace('.', ','); });
+  }
+  var COULEUR_CONSEIL = { 'SE COUCHER': 'c-rouge', 'CHECKER': 'c-gris', 'SUIVRE': 'c-orange', 'MISER': 'c-vert', 'RELANCER': 'c-vert' };
+  function rendreResultat() {
+    var pct = $('pct'), cons = $('conseil'), just = $('justif'), det = $('details');
+    var tete = $('resultat');
+    if (S.moi[0] == null || S.moi[1] == null) {
+      pct.className = 'attente'; pct.textContent = '—';
+      cons.className = 'c-attente'; cons.textContent = 'Saisis tes 2 cartes';
+      just.textContent = ''; det.textContent = '';
+      tete.classList.remove('perime');
+      return;
+    }
+    var r = R.res;
+    if (!r || R.resId < 0) {
+      pct.className = 'attente'; pct.textContent = '…';
+      cons.className = 'c-attente'; cons.textContent = 'Calcul…'; just.textContent = ''; det.textContent = '';
+      return;
+    }
+    tete.classList.toggle('perime', R.resId !== R.id);
+    var actifs = S.adv.filter(function (a) { return a.action !== 'couche'; });
+    var c = conseiller({
+      part: r.part, joueursEnJeu: actifs.length + 1, pot: nombre('pot'), aSuivre: nombre('suivre'),
+      miseEnFace: actifs.some(function (a) { return PARLE_DE_MISE[a.action]; })
+    });
+    pct.className = ''; pct.innerHTML = '';
+    pct.appendChild(document.createTextNode(String(Math.round(r.part * 100))));
+    pct.appendChild(el('small', '', '%'));
+    cons.className = COULEUR_CONSEIL[c.action] || 'c-gris'; cons.textContent = c.action;
+    just.textContent = c.justification;
+
+    det.innerHTML = '';
+    var d = dixiemes([r.gagne, r.egalite, r.perd]);
+    var l1 = el('div');
+    l1.appendChild(document.createTextNode('Gagner ')); l1.appendChild(el('b', '', d[0] + ' %'));
+    l1.appendChild(document.createTextNode(' · Égalité ')); l1.appendChild(el('b', '', d[1] + ' %'));
+    l1.appendChild(document.createTextNode(' · Perdre ')); l1.appendChild(el('b', '', d[2] + ' %'));
+    det.appendChild(l1);
+    var mt = S.moi.concat(S.tab.filter(function (x) { return x != null; }));
+    var l2 = el('div');
+    l2.appendChild(document.createTextNode('Ta main : ')); l2.appendChild(el('b', '', nomMain(evaluer(mt, mt.length))));
+    var nt = mt.length - 2;
+    if (nt === 3 || nt === 4) {
+      if (R.outsId === R.id && R.outs) {
+        var o = R.outs;
+        l2.appendChild(document.createTextNode(' · '));
+        l2.appendChild(el('b', '', o.nombre > 1 ? o.nombre + ' cartes t\'aident' : o.nombre === 1 ? '1 carte t\'aide' : 'aucune carte ne t\'aide'));
+        if (o.nombre) l2.appendChild(document.createTextNode(' (repère : ' + o.nombre + ' × ' + o.multiplicateur + ' ≈ ' + o.repere + ' %)'));
+      } else l2.appendChild(document.createTextNode(' · cartes qui t\'aident : calcul…'));
+    }
+    det.appendChild(l2);
+    var l3 = el('div');
+    var infos = [];
+    if (r.estimation) infos.push('Estimation selon ses actions');
+    if (S.adv.some(function (a) { return a.cartes.some(function (x) { return x != null; }) && !(a.cartes[0] != null && a.cartes[1] != null); })) infos.push('une carte adverse seule n\'est pas comptée');
+    if (mode !== 'worker') infos.push('calcul en mode secours');
+    if (!R.fini || R.resId !== R.id) infos.push('calcul…');
+    if (infos.length) { var sp = el('span', '', infos.join(' · ')); if (r.estimation) sp.id = 'estim'; l3.appendChild(sp); det.appendChild(l3); }
+  }
+
+  function maj(recalcul) {
+    rendreCartes(); rendreAdversaires(); rendreClavier();
+    if (recalcul) lancerCalcul(); else rendreResultat();
+  }
+
+  $('nouvelle').addEventListener('click', nouvelleMain);
+  $('moins').addEventListener('click', function () { changerNbAdv(-1); });
+  $('plus').addEventListener('click', function () { changerNbAdv(1); });
+  ['pot', 'suivre'].forEach(function (id) { $(id).addEventListener('input', rendreResultat); });
+
+  /* ---------- Tests cachés : triple-tap sur la mention du bas, ou #tests ---------- */
+  var nbOk = 0, nbTot = 0, groupe = '';
+  function lancerTests() {
+    $('tests').style.display = 'block'; $('lignes').innerHTML = ''; nbOk = nbTot = 0; groupe = '';
+    $('bilan').textContent = '— en cours…';
+    // Les tests vérifient les valeurs de départ : ils tournent dans un Worker neuf, jamais modifié par les réglages.
+    try {
+      var wt = new Worker(URL.createObjectURL(new Blob([sourceWorker()], { type: 'text/javascript' })));
+      wt.onmessage = function (e) { afficherTest(e.data); if (e.data.type === 'testsFini') wt.terminate(); };
+      wt.postMessage({ id: 'tests', type: 'tests' });
+    } catch (err) {
+      var perso = reglagesPerso();
+      appliquerReglages(JSON.parse(JSON.stringify(DEFAUTS)));
+      calc({ id: 'tests', type: 'tests' });
+      appliquerReglages(perso);
+    }
+  }
+  function afficherTest(m) {
+    if (m.type === 'testsFini') { $('bilan').innerHTML = '— <span class="' + (nbOk === nbTot ? 'ok' : 'ko') + '">' + nbOk + ' / ' + nbTot + ' réussis</span>'; lancerCalcul(); return; }
+    var t = m.resultat, tb = $('lignes'), tr;
+    if (t.groupe !== groupe) { groupe = t.groupe; tr = el('tr', 'groupe'); var td = el('td', '', groupe); td.colSpan = 3; tr.appendChild(td); tb.appendChild(tr); }
+    nbTot++; if (t.ok) nbOk++;
+    tr = el('tr');
+    tr.appendChild(el('td', t.ok ? 'ok' : 'ko', t.ok ? '✔' : '✘'));
+    tr.appendChild(el('td', '', t.nom)); tr.appendChild(el('td', '', t.detail));
+    tb.appendChild(tr);
+    $('bilan').textContent = '— ' + nbOk + ' / ' + nbTot + '…';
+  }
+  $('fermerTests').addEventListener('click', function () { $('tests').style.display = 'none'; });
+  var taps = [];
+  $('mention').addEventListener('click', function () {
+    var t = Date.now(); taps = taps.filter(function (x) { return t - x < 800; }); taps.push(t);
+    if (taps.length >= 3) { taps = []; lancerTests(); }
+  });
+
+  /* ---------- Réglages (étape 5) : panneau derrière l'icône ---------- */
+  var DEFAUTS = JSON.parse(JSON.stringify(REGLAGES));
+  function versPct(v) { return v / 100; }
+  function depuisPct(v) { return Math.round(v * 100); }
+  var CHAMPS = [
+    { g: 'Conseil' },
+    { k: 'MARGE_SUIVRE', t: 'Pour suivre, dépasser la cote du pot de', min: 0, max: 10, pas: 1, u: ' pt', vers: versPct, depuis: depuisPct },
+    { k: 'MULT_MISER', t: 'Miser à partir de', min: 1, max: 3, pas: 0.1, u: ' × ma part' },
+    { k: 'PLAFOND_MISER', t: '… sans dépasser', min: 30, max: 100, pas: 5, u: ' %', vers: versPct, depuis: depuisPct, aucun: 'aucune limite' },
+    { k: 'MULT_RELANCER', t: 'Relancer à partir de', min: 1, max: 4, pas: 0.1, u: ' × ma part' },
+    { k: 'MIN_RELANCER', t: '… et au moins', min: 30, max: 95, pas: 5, u: ' %', vers: versPct, depuis: depuisPct },
+    { k: 'PLAFOND_RELANCER', t: '… sans dépasser', min: 50, max: 100, pas: 5, u: ' %', vers: versPct, depuis: depuisPct, aucun: 'aucune limite' },
+    { resume: true },
+    { g: 'Lecture des adversaires (estimation)' },
+    { k: 'FOURCHETTE.suivre', t: 'S\'il suit : ses meilleures mains', min: 5, max: 100, pas: 5, u: ' %', vers: versPct, depuis: depuisPct, aucun: 'toutes' },
+    { k: 'FOURCHETTE.mise', t: 'S\'il mise : ses meilleures mains', min: 5, max: 100, pas: 5, u: ' %', vers: versPct, depuis: depuisPct, aucun: 'toutes' },
+    { k: 'FOURCHETTE.relance', t: 'S\'il relance : ses meilleures mains', min: 5, max: 100, pas: 5, u: ' %', vers: versPct, depuis: depuisPct, aucun: 'toutes' },
+    { k: 'FOURCHETTE.tapis', t: 'S\'il fait tapis : ses meilleures mains', min: 5, max: 100, pas: 5, u: ' %', vers: versPct, depuis: depuisPct, aucun: 'toutes' }
+  ];
+  function lire(src, k) { var x = k.split('.'); return x.length > 1 ? src[x[0]][x[1]] : src[k]; }
+  function objet(k, v) { var x = k.split('.'), o = {}; if (x.length > 1) { o[x[0]] = {}; o[x[0]][x[1]] = v; } else o[k] = v; return o; }
+  function reglagesPerso() {
+    var o = { FOURCHETTE: {} };
+    CHAMPS.forEach(function (c) { if (!c.k) return; var x = c.k.split('.'), v = lire(REGLAGES, c.k); if (x.length > 1) o.FOURCHETTE[x[1]] = v; else o[c.k] = v; });
+    return o;
+  }
+  function ecrireStock() {
+    try {
+      var o = reglagesPerso(), diff = CHAMPS.some(function (c) { return c.k && lire(o, c.k) !== lire(DEFAUTS, c.k); });
+      if (diff) localStorage.setItem('brelan-reglages', JSON.stringify(o)); else localStorage.removeItem('brelan-reglages');
+    } catch (e) {}
+  }
+  (function lireStock() {
+    var o = null;
+    try { o = JSON.parse(localStorage.getItem('brelan-reglages') || 'null'); } catch (e) {}
+    if (!o || typeof o !== 'object') return;
+    CHAMPS.forEach(function (c) {
+      if (!c.k) return;
+      var x = c.k.split('.'), v = x.length > 1 ? (o[x[0]] || {})[x[1]] : o[c.k];
+      if (typeof v !== 'number' || !isFinite(v)) return;
+      var aff = c.depuis ? c.depuis(v) : v;
+      if (aff >= c.min - 1e-9 && aff <= c.max + 1e-9) appliquerReglages(objet(c.k, v));
+    });
+  })();
+  function texteValeur(c, aff) {
+    if (c.aucun && aff >= c.max) return c.aucun;
+    return (c.pas < 1 ? aff.toFixed(1).replace('.', ',') : String(aff)) + c.u;
+  }
+  function texteResume() {
+    return [2, 3, 6].map(function (n) {
+      var m = seuilMiser(1 / n), r = seuilRelancer(1 / n);
+      return 'À ' + n + ' joueurs : miser dès ' + Math.round(m * 100) + ' %, relancer ' + (r >= 1 ? 'jamais' : 'dès ' + Math.round(r * 100) + ' %');
+    }).join(' · ') + '.';
+  }
+  var minuterieReglage = null;
+  function rendreReglages() {
+    var z = $('champs'); z.innerHTML = '';
+    CHAMPS.forEach(function (c) {
+      if (c.g) { z.appendChild(el('h3', '', c.g)); return; }
+      if (c.resume) { var rs = el('div', 'resume', texteResume()); rs.id = 'resumeSeuils'; z.appendChild(rs); return; }
+      var bloc = el('div', 'reglage'), lib = el('label', 'lib'), sortie = el('output');
+      var entree = el('input'); entree.type = 'range'; entree.min = c.min; entree.max = c.max; entree.step = c.pas;
+      var aff = c.depuis ? c.depuis(lire(REGLAGES, c.k)) : lire(REGLAGES, c.k);
+      entree.value = aff; sortie.textContent = texteValeur(c, aff);
+      entree.setAttribute('aria-label', c.t);
+      lib.appendChild(el('span', '', c.t)); lib.appendChild(sortie);
+      bloc.appendChild(lib); bloc.appendChild(entree); z.appendChild(bloc);
+      entree.addEventListener('input', function () {
+        var a = Number(entree.value);
+        appliquerReglages(objet(c.k, c.vers ? c.vers(a) : Math.round(a * 10) / 10));
+        sortie.textContent = texteValeur(c, a);
+        var rs = $('resumeSeuils'); if (rs) rs.textContent = texteResume();
+        ecrireStock();
+        rendreResultat();                                     // le conseil change tout de suite
+        clearTimeout(minuterieReglage);                       // les fourchettes demandent un nouveau calcul
+        minuterieReglage = setTimeout(lancerCalcul, 200);
+      });
+    });
+  }
+  function panneauOuvert() { return $('panneau').classList.contains('ouvert'); }
+  function ouvrirPanneau() { rendreReglages(); $('panneau').classList.add('ouvert'); $('fermerReglages').focus(); }
+  function fermerPanneau() { $('panneau').classList.remove('ouvert'); $('reglagesBtn').focus(); }
+  $('reglagesBtn').addEventListener('click', ouvrirPanneau);
+  $('fermerReglages').addEventListener('click', fermerPanneau);
+  $('panneau').addEventListener('click', function (e) { if (e.target === $('panneau')) fermerPanneau(); });
+  $('defauts').addEventListener('click', function () {
+    appliquerReglages(JSON.parse(JSON.stringify(reglagesDepuis(DEFAUTS))));
+    ecrireStock(); rendreReglages(); lancerCalcul();
+  });
+  function reglagesDepuis(src) { var o = { FOURCHETTE: {} }; CHAMPS.forEach(function (c) { if (!c.k) return; var x = c.k.split('.'); if (x.length > 1) o.FOURCHETTE[x[1]] = src.FOURCHETTE[x[1]]; else o[c.k] = src[c.k]; }); return o; }
+  $('verifier').addEventListener('click', function () { fermerPanneau(); lancerTests(); });
+
+  /* ---------- Saisie au clavier (Mac) : couleur puis valeur ---------- */
+  var TOUCHE_COULEUR = { p: 3, c: 2, k: 1, t: 0 };
+  var TOUCHE_VALEUR = { '2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '0': 8, '1': 8, v: 9, d: 10, r: 11, a: 12 };
+  function secouer() { var zc = $('couleurs'); zc.classList.remove('secoue'); void zc.offsetWidth; zc.classList.add('secoue'); }
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var cible = e.target;
+    if (cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA' || cible.isContentEditable)) return;
+    if (e.key === 'Escape') { if (panneauOuvert()) fermerPanneau(); else { S.couleur = null; rendreClavier(); } return; }
+    if (panneauOuvert() || $('tests').style.display === 'block') return;
+    if (e.key === 'Backspace') { e.preventDefault(); annuler(); return; }
+    if (e.key === 'N' && e.shiftKey) { e.preventDefault(); nouvelleMain(); return; }
+    var k = (e.key || '').toLowerCase();
+    if (k in TOUCHE_COULEUR) {
+      e.preventDefault();
+      if (!prochaineCase()) { secouer(); return; }
+      S.couleur = TOUCHE_COULEUR[k]; rendreClavier(); return;
+    }
+    if (k in TOUCHE_VALEUR) {
+      e.preventDefault();
+      if (S.couleur === null || !prochaineCase()) { secouer(); return; }
+      var carte = TOUCHE_VALEUR[k] * 4 + S.couleur;
+      if (utilisees()[carte]) { secouer(); return; }
+      placer(carte);
+    }
+  });
+
+  maj(true);
+  if (location.hash === '#tests') lancerTests();
+})();
+</script>
+</body>
+</html>
